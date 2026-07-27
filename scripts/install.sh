@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ================================================================
 # ScoutX Linux Installer
-# Usage: curl -sSL https://raw.githubusercontent.com/lo/ScoutX/main/scripts/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/GENESIS-PROKEY/ScoutX/main/scripts/install.sh | bash
 # ================================================================
 set -euo pipefail
 
@@ -51,9 +51,17 @@ fi
 # Go tools (optional)
 echo ""
 echo -e "${BLUE}[3/4] Go Tools (optional)${NC}"
-read -p "  Install Go recon tools (subfinder, httpx, nuclei, etc.)? [y/N] " -n 1 -r
-echo ""
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+# Detect if running interactively or via pipe (curl | bash)
+if [ -t 0 ]; then
+    read -p "  Install Go recon tools (subfinder, httpx, nuclei, etc.)? [y/N] " -n 1 -r
+    echo ""
+    INSTALL_GO=$REPLY
+else
+    echo -e "  ${YELLOW}Non-interactive mode detected — skipping Go tools.${NC}"
+    echo -e "  ${YELLOW}Run 'sx doctor --install core' after install to get them.${NC}"
+    INSTALL_GO="n"
+fi
+if [[ $INSTALL_GO =~ ^[Yy]$ ]]; then
     if ! command -v go &>/dev/null; then
         echo -e "  ${YELLOW}Go not found. Installing...${NC}"
         wget -q https://go.dev/dl/go1.22.5.linux-amd64.tar.gz -O /tmp/go.tar.gz
