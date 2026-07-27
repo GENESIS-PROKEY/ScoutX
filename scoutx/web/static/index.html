@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScoutX Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <h2>ScoutX</h2>
+            <div id="scan-list" class="scan-list">
+                <!-- Scan items will go here -->
+            </div>
+        </aside>
+        <main class="content">
+            <header>
+                <h1 id="target-title">Select a Scan</h1>
+                <div id="risk-score" class="risk-score"></div>
+            </header>
+            
+            <div id="dashboard-content" class="dashboard-content hidden">
+                <div class="cards">
+                    <div class="card">
+                        <h3>Subdomains</h3>
+                        <p id="stat-subdomains" class="stat">0</p>
+                    </div>
+                    <div class="card">
+                        <h3>Open Ports</h3>
+                        <p id="stat-ports" class="stat">0</p>
+                    </div>
+                    <div class="card">
+                        <h3>Endpoints</h3>
+                        <p id="stat-endpoints" class="stat">0</p>
+                    </div>
+                    <div class="card">
+                        <h3>Secrets</h3>
+                        <p id="stat-secrets" class="stat">0</p>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" data-target="tab-overview">Overview</button>
+                    <button class="tab-btn" data-target="tab-subdomains">Subdomains</button>
+                    <button class="tab-btn" data-target="tab-ports">Ports</button>
+                    <button class="tab-btn" data-target="tab-intelligence">Intelligence</button>
+                </div>
+
+                <div class="tab-content active" id="tab-overview">
+                    <h3>Scan State</h3>
+                    <pre id="overview-state"></pre>
+                </div>
+                
+                <div class="tab-content" id="tab-subdomains">
+                    <h3>Subdomains</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Domain</th><th>IPs</th></tr>
+                        </thead>
+                        <tbody id="table-subdomains"></tbody>
+                    </table>
+                </div>
+
+                <div class="tab-content" id="tab-ports">
+                    <h3>Open Ports</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Host</th><th>Port</th><th>Service</th></tr>
+                        </thead>
+                        <tbody id="table-ports"></tbody>
+                    </table>
+                </div>
+
+                <div class="tab-content" id="tab-intelligence">
+                    <h3>Intelligence</h3>
+                    <pre id="pre-intelligence"></pre>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        async function fetchScans() {
+            try {
+                const res = await fetch('/api/scans');
+                const data = await res.json();
+                const list = document.getElementById('scan-list');
+                list.innerHTML = '';
+                data.scans.forEach(target => {
+                    const el = document.createElement('div');
+                    el.className = 'scan-item';
+                    el.textContent = target;
+                    el.onclick = () => loadScan(target, el);
+                    list.appendChild(el);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function loadScan(target, element) {
+            document.querySelectorAll('.scan-item').forEach(el => el.classList.remove('active'));
+            if (element) element.classList.add('active');
+
+            document.getElementById('target-title').textContent = target;
+            document.getElementById('dashboard-content').classList.remove('hidden');
+
+            try {
+                const res = await fetch(`/api/scans/${target}`);
+                const data = await res.json();
+                
+                // Set Risk Score (mock based on secrets)
+                const secretsCount = data.results.secrets?.total || 0;
+                const riskEl = document.getElementById('risk-score');
+                riskEl.textContent = secretsCount > 0 ? `Risk: High (${secretsCount} secrets)` : 'Risk: Low';
+                riskEl.className = 'risk-score ' + (secretsCount > 0 ? 'high' : 'low');
+
+                // Stats
+                document.getElementById('stat-subdomains').textContent = data.results.subdomains?.subdomains?.length || 0;
+                document.getElementById('stat-ports').textContent = data.results.ports?.total_open || 0;
+                document.getElementById('stat-endpoints').textContent = data.results.endpoints?.endpoints?.length || 0;
+                document.getElementById('stat-secrets').textContent = secretsCount;
+
+                // Overview
+                document.getElementById('overview-state').textContent = JSON.stringify(data.state, null, 2);
+
+                // Subdomains
+                const subTbody = document.getElementById('table-subdomains');
+                subTbody.innerHTML = '';
+                const subs = data.results.subdomains?.subdomains || [];
+                subs.forEach(s => {
+                    subTbody.innerHTML += `<tr><td>${s.domain}</td><td>${s.ips ? s.ips.join(', ') : ''}</td></tr>`;
+                });
+
+                // Ports
+                const portTbody = document.getElementById('table-ports');
+                portTbody.innerHTML = '';
+                const ports = data.results.ports?.open_ports || [];
+                ports.forEach(p => {
+                    portTbody.innerHTML += `<tr><td>${p.host}</td><td>${p.port}</td><td>${p.service || 'unknown'}</td></tr>`;
+                });
+
+                // Intelligence
+                const intRes = await fetch(`/api/scans/${target}/intelligence`);
+                const intData = await intRes.json();
+                document.getElementById('pre-intelligence').textContent = JSON.stringify(intData, null, 2);
+
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Tabs
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.target).classList.add('active');
+            });
+        });
+
+        // Init
+        fetchScans();
+    </script>
+</body>
+</html>

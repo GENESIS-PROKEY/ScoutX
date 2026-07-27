@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  scoutx:
+    build: .
+    image: scoutx:latest
+    container_name: scoutx-runner
+    volumes:
+      - ./results:/app/results
+    # The default entrypoint is "sx", so you can pass arguments like this:
+    # command: ["--help"]
