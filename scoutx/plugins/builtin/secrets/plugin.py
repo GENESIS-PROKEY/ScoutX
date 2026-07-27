@@ -18,11 +18,13 @@ import re
 import shutil
 from collections import Counter
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+import httpx
 
 from scoutx.plugins.base import PluginMeta, PluginResult, ResultSchema, ScoutPlugin
-from scoutx.utils.io import write_json, write_jsonl
 from scoutx.utils.crypto import redact
+from scoutx.utils.io import write_json, write_jsonl
 
 if TYPE_CHECKING:
     from scoutx.core.engine import ScanContext
@@ -106,7 +108,7 @@ class Plugin(ScoutPlugin):
     concurrent_with: list[str] = ["endpoints"]
 
     async def run(self, context: ScanContext) -> PluginResult:
-        from scoutx.cli.ui import info, success, warn
+        from scoutx.cli.ui import info, success
         from scoutx.core.events import Event, EventType
 
         js_data = context.result_data("js")
@@ -377,7 +379,7 @@ class Plugin(ScoutPlugin):
                     "pattern": "GitHub Code Search",
                     "severity": "high",
                     "confidence": "medium",
-                    "description": f"Secret-like content found in GitHub repo",
+                    "description": "Secret-like content found in GitHub repo",
                     "match": result.get("path", ""),
                     "match_raw": result.get("path", ""),
                     "context": f"Repo: {result.get('repository', {}).get('nameWithOwner', '')}",

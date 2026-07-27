@@ -1,11 +1,12 @@
 import pytest
 
 from scoutx.plugins.builtin.intelligence.plugin import (
+    _build_priority_queue,
+    _build_tech_intelligence,
     _get_hosts,
     _score_hosts,
-    _build_tech_intelligence,
-    _build_priority_queue,
 )
+
 
 def test_get_hosts_standard():
     probe_data = {

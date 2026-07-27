@@ -287,7 +287,7 @@ def detect_exposed_databases(scan_data: dict[str, Any]) -> list[AttackChain]:
                                    f"# List all databases on {host}:{port_num}",
                                    tool, "Database listing"),
                         AttackStep(4, "Check for sensitive data",
-                                   f"# Query for user tables, credentials, PII",
+                                   "# Query for user tables, credentials, PII",
                                    tool, "Document findings"),
                     ],
                     tools_needed=["nmap", tool],
@@ -664,7 +664,7 @@ def detect_tech_cve_chains(scan_data: dict[str, Any]) -> list[AttackChain]:
                     prerequisites=[f"{tech} detected in technology stack"],
                     steps=[
                         AttackStep(1, "Confirm exact version",
-                                   f"# Check response headers, error pages for version info",
+                                   "# Check response headers, error pages for version info",
                                    "curl", "Identify exact version number"),
                         AttackStep(2, "Check if version is vulnerable",
                                    f"# Cross-reference version with {cve}",

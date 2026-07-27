@@ -4,14 +4,14 @@ from __future__ import annotations
 import pytest
 
 from scoutx.tools.registry import (
-    TOOL_REGISTRY,
     CATEGORIES,
+    TOOL_REGISTRY,
     ToolEntry,
-    check_tool,
     check_all,
-    get_missing,
-    get_installed,
+    check_tool,
     get_by_category,
+    get_installed,
+    get_missing,
 )
 
 

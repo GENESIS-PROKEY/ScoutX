@@ -8,16 +8,15 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
 
 from scoutx.plugins.base import PluginMeta, PluginResult, ResultSchema, ScoutPlugin
-from scoutx.utils.io import atomic_write_text, write_json, write_jsonl
 from scoutx.utils.crypto import fingerprint
+from scoutx.utils.io import atomic_write_text, write_json, write_jsonl
 
 if TYPE_CHECKING:
     from scoutx.core.engine import ScanContext

@@ -97,10 +97,10 @@ class ScanScheduler:
             self._tasks[schedule_id].cancel()
             self._tasks.pop(schedule_id)
             canceled = True
-        
+
         if schedule_id in self._schedules:
             self._schedules.pop(schedule_id)
             self._save_state()
             canceled = True
-            
+
         return canceled

@@ -13,7 +13,7 @@ from typing import Any
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from scoutx.database.models import Base, Finding, Host, Module, Scan, Screenshot
+from scoutx.database.models import Base, Finding, Host, Module, Scan
 
 logger = logging.getLogger("scoutx.database")
 

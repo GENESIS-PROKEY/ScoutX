@@ -1,5 +1,6 @@
 import asyncio
 from unittest.mock import AsyncMock, patch
+
 import pytest
 
 from scoutx.core.engine import ScanEngine

@@ -12,7 +12,6 @@ from scoutx.methodology.phases import (
     METHODOLOGY_PHASES,
     MethodologyPhase,
     get_passive_phases,
-    get_active_phases,
 )
 from scoutx.tools.registry import check_tool
 

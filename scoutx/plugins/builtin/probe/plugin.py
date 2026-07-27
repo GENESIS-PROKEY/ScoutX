@@ -12,8 +12,7 @@ import hashlib
 import logging
 import re
 import shutil
-from typing import Any, TYPE_CHECKING
-from urllib.parse import urlparse
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -78,7 +77,7 @@ class Plugin(ScoutPlugin):
     concurrent_with: list[str] = ["ports", "ssl_analysis"]
 
     async def run(self, context: ScanContext) -> PluginResult:
-        from scoutx.cli.ui import info, success, warn
+        from scoutx.cli.ui import info, success
 
         # Get subdomains from prior results
         sub_data = context.result_data("subdomains")

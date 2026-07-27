@@ -1,8 +1,6 @@
 """Plugin management commands — list, enable, disable."""
 from __future__ import annotations
 
-from pathlib import Path
-
 import typer
 
 from scoutx.cli.ui import info, print_module_summary, success, warn
@@ -97,8 +95,9 @@ def register(app: typer.Typer) -> None:
     ) -> None:
         """Install a third-party plugin from a Git repository."""
         import asyncio
-        from scoutx.plugins.marketplace import PluginMarketplace
+
         from scoutx.cli.ui import error
+        from scoutx.plugins.marketplace import PluginMarketplace
 
         marketplace = PluginMarketplace()
         success_install = asyncio.run(marketplace.install(name, source))
@@ -114,8 +113,9 @@ def register(app: typer.Typer) -> None:
     ) -> None:
         """Uninstall a third-party plugin."""
         import asyncio
-        from scoutx.plugins.marketplace import PluginMarketplace
+
         from scoutx.cli.ui import error
+        from scoutx.plugins.marketplace import PluginMarketplace
 
         marketplace = PluginMarketplace()
         success_uninstall = asyncio.run(marketplace.uninstall(name))

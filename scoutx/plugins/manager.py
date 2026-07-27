@@ -9,7 +9,6 @@ import importlib
 import logging
 import pkgutil
 from pathlib import Path
-from typing import Any
 
 from scoutx.core.config import ScoutXConfig
 from scoutx.plugins.base import ScoutPlugin

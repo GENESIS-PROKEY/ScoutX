@@ -6,7 +6,7 @@ which plugin handles it, and what external tools enhance it.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass

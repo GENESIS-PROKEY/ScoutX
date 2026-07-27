@@ -10,7 +10,6 @@ from typing import Any
 
 import yaml
 
-
 # ── Sane defaults ──────────────────────────────────────────────────────
 DEFAULT_CONFIG: dict[str, Any] = {
     "output_dir": "results",

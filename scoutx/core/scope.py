@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import fnmatch
 import ipaddress
-import re
 from pathlib import Path
 from typing import Any
 

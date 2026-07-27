@@ -11,22 +11,17 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-from rich import box
 from rich.console import Console
 from rich.table import Table
 from typer.core import TyperGroup
 
 from scoutx import __version__
 from scoutx.cli.ui import (
-    BRAND_DIM,
     BRAND_PRIMARY,
     banner_renderable,
     console,
-    error,
     info,
-    success,
     ui_box,
-    warn,
 )
 
 # ── Command group layout ──────────────────────────────────────────────
@@ -134,9 +129,10 @@ plugin_app = typer.Typer(help="Manage scanner plugins.", no_args_is_help=True)
 app.add_typer(scope_app, name="scope")
 app.add_typer(plugin_app, name="plugin")
 
-from scoutx.cli.commands.doctor import doctor_app
-from scoutx.cli.commands.diff import diff_app
-from scoutx.cli.commands.dashboard import dashboard_app
+from scoutx.cli.commands.dashboard import dashboard_app  # noqa: E402
+from scoutx.cli.commands.diff import diff_app  # noqa: E402
+from scoutx.cli.commands.doctor import doctor_app  # noqa: E402
+
 app.add_typer(doctor_app, name="doctor")
 app.add_typer(diff_app, name="diff")
 app.add_typer(dashboard_app, name="dashboard")
@@ -165,10 +161,10 @@ def cli(
 
 
 # ── Import and register command modules ───────────────────────────────
+from scoutx.cli.commands.dashboard import register as register_dashboard  # noqa: E402
+from scoutx.cli.commands.plugin import register as register_plugin  # noqa: E402
 from scoutx.cli.commands.scan import register as register_scan  # noqa: E402
 from scoutx.cli.commands.scope import register as register_scope  # noqa: E402
-from scoutx.cli.commands.plugin import register as register_plugin  # noqa: E402
-from scoutx.cli.commands.dashboard import register as register_dashboard  # noqa: E402
 
 register_scan(app)
 register_scope(scope_app)
@@ -182,9 +178,9 @@ def doctor(
     output: Path = typer.Option(Path("results"), "-o", "--output", help="Output directory"),
 ) -> None:
     """Check runtime readiness and dependencies."""
-    from scoutx.cli.ui import print_module_summary
-
     import shutil
+
+    from scoutx.cli.ui import print_module_summary
 
     checks: dict[str, str] = {}
 
@@ -202,8 +198,8 @@ def doctor(
 
     # Playwright
     try:
-        import playwright
         from importlib.metadata import version as pkg_version
+
         pw_ver = pkg_version("playwright")
         checks["Playwright"] = f"[OK] {pw_ver}"
     except ImportError:

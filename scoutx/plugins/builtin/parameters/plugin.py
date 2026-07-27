@@ -7,8 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -118,7 +117,7 @@ class Plugin(ScoutPlugin):
                         url = entry.get("url", "")
                         if url and "?" in url:
                             all_urls.add(url)
-                    info(f"  OTX: fetched additional URLs")
+                    info("  OTX: fetched additional URLs")
         except Exception as exc:
             logger.debug("OTX URL fetch failed: %s", exc)
 

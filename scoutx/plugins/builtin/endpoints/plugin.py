@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from scoutx.plugins.base import PluginMeta, PluginResult, ResultSchema, ScoutPlugin
 from scoutx.utils.io import atomic_write_text, write_json, write_jsonl

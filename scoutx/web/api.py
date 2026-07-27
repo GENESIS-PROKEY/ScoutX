@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from scoutx.core.config import ScoutXConfig
@@ -42,9 +41,9 @@ def get_scan(target: str) -> dict[str, Any]:
     target_dir = RESULTS_DIR / target
     if not target_dir.exists():
         raise HTTPException(status_code=404, detail="Scan not found")
-    
+
     state = read_json_safe(target_dir / "scan_state.json")
-    
+
     # Collect summary metrics
     results = {}
     for child in target_dir.iterdir():
@@ -52,7 +51,7 @@ def get_scan(target: str) -> dict[str, Any]:
             json_file = child / f"{child.name}.json"
             if json_file.exists():
                 results[child.name] = read_json_safe(json_file)
-    
+
     return {
         "target": target,
         "state": state,

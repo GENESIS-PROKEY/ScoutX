@@ -35,9 +35,9 @@ class Plugin(ScoutPlugin):
 
     async def run(self, context: ScanContext) -> PluginResult:
         """Analyze all scan data and generate attack chains."""
-        from scoutx.cli.ui import info, success, warn
         from scoutx.chains.engine import AttackChainEngine
         from scoutx.chains.reporter import ChainReporter
+        from scoutx.cli.ui import info, success
 
         output_dir = context.output_dir / "attack_chains"
         output_dir.mkdir(parents=True, exist_ok=True)

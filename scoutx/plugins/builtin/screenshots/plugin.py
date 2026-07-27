@@ -7,10 +7,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from pathlib import Path
 from typing import Any
 
-from scoutx.plugins.base import ScoutPlugin, PluginResult, PluginMeta, ResultSchema
+from scoutx.plugins.base import PluginMeta, PluginResult, ResultSchema, ScoutPlugin
 
 logger = logging.getLogger("scoutx.plugins.screenshots")
 

@@ -9,15 +9,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import socket
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
 from scoutx.plugins.base import PluginMeta, PluginResult, ResultSchema, ScoutPlugin
 from scoutx.plugins.builtin.takeover.fingerprints import (
     FINGERPRINTS,
-    TakeoverFingerprint,
-    match_body,
     match_cname,
 )
 from scoutx.utils.io import write_json

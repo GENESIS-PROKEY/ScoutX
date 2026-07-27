@@ -165,8 +165,8 @@ class NotificationEngine:
                 - critical_finding
                 - scan_error
         """
-        from scoutx.notifications.slack import SlackNotifier
         from scoutx.notifications.discord import DiscordNotifier
+        from scoutx.notifications.slack import SlackNotifier
         from scoutx.notifications.webhook import WebhookNotifier
 
         engine = cls()

@@ -11,9 +11,8 @@ import asyncio
 import json
 import logging
 import shutil
-import tempfile
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from scoutx.plugins.base import PluginMeta, PluginResult, ResultSchema, ScoutPlugin
 from scoutx.utils.io import write_json

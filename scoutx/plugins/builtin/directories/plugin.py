@@ -10,7 +10,7 @@ import json
 import logging
 import shutil
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -71,7 +71,7 @@ class Plugin(ScoutPlugin):
     concurrent_with: list[str] = ["cors", "js", "parameters", "takeover", "screenshots"]
 
     async def run(self, context: ScanContext) -> PluginResult:
-        from scoutx.cli.ui import info, success, warn
+        from scoutx.cli.ui import info, success
 
         output_dir = context.output_dir / "directories"
         output_dir.mkdir(parents=True, exist_ok=True)

@@ -1,14 +1,9 @@
-import json
 from pathlib import Path
-from typing import Optional
 
 import typer
-from rich import box
-from rich.table import Table
 
-from scoutx.cli.ui import console, error, info, print_module_header, success, warn
+from scoutx.cli.ui import console, error, info, print_module_header, warn
 from scoutx.reporting.diff import ScanDiffer, format_diff_text
-from scoutx.utils.io import write_json
 
 diff_app = typer.Typer(help="Compare two scan result directories.", no_args_is_help=True)
 
@@ -24,7 +19,7 @@ def diff_command(
     if not dir1.exists() or not dir1.is_dir():
         error(f"Directory not found: {dir1}")
         raise typer.Exit(code=1)
-        
+
     if not dir2.exists() or not dir2.is_dir():
         error(f"Directory not found: {dir2}")
         raise typer.Exit(code=1)

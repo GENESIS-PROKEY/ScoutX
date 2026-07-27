@@ -9,7 +9,7 @@ import asyncio
 import logging
 import ssl
 from datetime import datetime, timezone
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from scoutx.plugins.base import PluginMeta, PluginResult, ResultSchema, ScoutPlugin
 from scoutx.utils.io import write_json, write_jsonl
@@ -34,7 +34,7 @@ class Plugin(ScoutPlugin):
     concurrent_with: list[str] = ["probe", "ports"]
 
     async def run(self, context: ScanContext) -> PluginResult:
-        from scoutx.cli.ui import info, success, warn
+        from scoutx.cli.ui import info, success
 
         sub_data = context.result_data("subdomains")
         subdomains = sub_data.get("subdomains", [])

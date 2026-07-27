@@ -7,7 +7,6 @@ missing tools.
 from __future__ import annotations
 
 import asyncio
-import shutil
 import sys
 from importlib.metadata import version as pkg_version
 from typing import Optional
@@ -16,8 +15,7 @@ import typer
 from rich import box
 from rich.table import Table
 
-from scoutx.cli.ui import console, success, warn, error, info, BRAND_PRIMARY
-
+from scoutx.cli.ui import BRAND_PRIMARY, console, error, info, success, warn
 
 doctor_app = typer.Typer(help="Diagnose your ScoutX installation.")
 
@@ -52,8 +50,9 @@ def _check_dependency(name: str, import_name: str | None = None) -> bool:
 def _check_playwright_browsers() -> bool:
     """Check if Playwright browsers are installed."""
     try:
-        from playwright.sync_api import sync_playwright  # noqa: F401
         import subprocess
+
+        from playwright.sync_api import sync_playwright  # noqa: F401
         result = subprocess.run(
             [sys.executable, "-m", "playwright", "install", "--dry-run"],
             capture_output=True, text=True, timeout=10,

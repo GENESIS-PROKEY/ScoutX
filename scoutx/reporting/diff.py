@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from scoutx.utils.io import read_json, read_jsonl
+from scoutx.utils.io import read_json
 
 logger = logging.getLogger("scoutx.reporting.diff")
 

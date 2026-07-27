@@ -3,17 +3,17 @@ from __future__ import annotations
 
 import pytest
 
+from scoutx.chains.checklist import VulnChecklist
 from scoutx.chains.models import AttackChain, AttackStep, ChainReport, ChecklistItem
 from scoutx.chains.patterns import (
-    detect_subdomain_takeover,
     detect_cors_theft,
-    detect_secret_exploitation,
     detect_exposed_databases,
-    detect_nuclei_exploits,
     detect_internal_endpoints,
+    detect_nuclei_exploits,
+    detect_secret_exploitation,
+    detect_subdomain_takeover,
     detect_tech_cve_chains,
 )
-from scoutx.chains.checklist import VulnChecklist
 
 
 class TestAttackChainModels:

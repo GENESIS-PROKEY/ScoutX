@@ -4,12 +4,11 @@ Every line of terminal output goes through here. We don't do boring.
 """
 from __future__ import annotations
 
+import os
+import sys
 import time
 from contextlib import contextmanager
 from typing import Any, Generator
-
-import os
-import sys
 
 from rich import box
 from rich.align import Align

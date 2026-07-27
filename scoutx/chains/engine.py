@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from scoutx.chains.models import AttackChain, ChainReport
 from scoutx.chains.patterns import ALL_PATTERNS

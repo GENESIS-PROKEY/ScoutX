@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import typer
 import uvicorn
+
 from scoutx.cli.ui import info
 
 dashboard_app = typer.Typer(help="Start the web dashboard.", no_args_is_help=False)

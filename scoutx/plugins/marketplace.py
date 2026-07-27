@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import logging
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
-import subprocess
 
 logger = logging.getLogger("scoutx.plugins.marketplace")
 
@@ -18,7 +18,7 @@ class PluginMarketplace:
             self.plugins_dir = Path.home() / ".scoutx" / "plugins"
         else:
             self.plugins_dir = plugins_dir
-        
+
         self.plugins_dir.mkdir(parents=True, exist_ok=True)
 
     async def search(self, query: str) -> list[dict[str, Any]]:
@@ -43,24 +43,24 @@ class PluginMarketplace:
                 capture_output=True,
                 text=True
             )
-            
+
             # Validate the plugin
             plugin_file = target_dir / "plugin.py"
             if not plugin_file.exists():
                 logger.error(f"Invalid plugin repository: missing plugin.py at {plugin_file}")
                 shutil.rmtree(target_dir)
                 return False
-                
+
             with open(plugin_file, "r", encoding="utf-8") as f:
                 content = f.read()
                 if "class Plugin" not in content:
                     logger.error("Invalid plugin repository: missing Plugin class in plugin.py")
                     shutil.rmtree(target_dir)
                     return False
-                    
+
             logger.info(f"Successfully installed plugin {name}")
             return True
-            
+
         except subprocess.CalledProcessError as e:
             logger.error(f"Git clone failed: {e.stderr}")
             if target_dir.exists():
@@ -78,7 +78,7 @@ class PluginMarketplace:
         if not target_dir.exists():
             logger.warning(f"Plugin {name} is not installed.")
             return False
-            
+
         try:
             shutil.rmtree(target_dir)
             logger.info(f"Successfully uninstalled plugin {name}")

@@ -34,11 +34,11 @@ def register(app: typer.Typer) -> None:
         """
         try:
             from scoutx.core.config import ScoutXConfig
-            from scoutx.core.scope import Scope
             from scoutx.core.engine import ScanEngine
-            from scoutx.plugins.manager import PluginManager
-            from scoutx.database.repository import Repository
             from scoutx.core.events import EventBus
+            from scoutx.core.scope import Scope
+            from scoutx.database.repository import Repository
+            from scoutx.plugins.manager import PluginManager
             from scoutx.utils.validators import validate_domain
 
             target = validate_domain(domain)
@@ -166,8 +166,8 @@ def register(app: typer.Typer) -> None:
         fmt: str = typer.Option("html,md", "--format", "-f", help="Report formats: html, md, csv, sarif"),
     ) -> None:
         """Generate reports from existing scan data."""
-        from scoutx.utils.validators import validate_domain
         from scoutx.reporting.aggregator import ScanAggregator
+        from scoutx.utils.validators import validate_domain
 
         try:
             target = validate_domain(domain)

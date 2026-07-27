@@ -6,10 +6,9 @@ with no dependencies — pure passive intelligence gathering.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import socket
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -36,7 +35,7 @@ class Plugin(ScoutPlugin):
     concurrent_with: list[str] = ["subdomains"]
 
     async def run(self, context: ScanContext) -> PluginResult:
-        from scoutx.cli.ui import info, success, warn
+        from scoutx.cli.ui import info, success
 
         output_dir = context.output_dir / "osint"
         output_dir.mkdir(parents=True, exist_ok=True)
