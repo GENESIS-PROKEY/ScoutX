@@ -72,17 +72,45 @@ if [[ $INSTALL_GO =~ ^[Yy]$ ]]; then
         echo -e "  ${GREEN}Go installed${NC}"
     fi
     echo -e "  ${BLUE}Installing core tools...${NC}"
-    sx doctor --install core 2>/dev/null || echo -e "  ${YELLOW}Run 'sx doctor --install core' manually${NC}"
+    scoutx doctor --install core 2>/dev/null || echo -e "  ${YELLOW}Run 'scoutx doctor --install core' manually${NC}"
 fi
 
-# Verify
+# Detect sx conflict (lrzsz ZMODEM tool on Kali/Debian)
 echo ""
 echo -e "${BLUE}[4/4] Verifying...${NC}"
-sx --version 2>/dev/null && echo -e "  ${GREEN}ScoutX is ready!${NC}" || echo -e "  ${YELLOW}Run: sx --help${NC}"
+
+# Determine the right command name
+SX_CMD=""
+if command -v scoutx &>/dev/null; then
+    scoutx --version 2>/dev/null && SX_CMD="scoutx"
+fi
+
+# Check if 'sx' is our ScoutX or the ZMODEM tool
+if [ -z "$SX_CMD" ]; then
+    echo -e "  ${RED}ScoutX command not found on PATH${NC}"
+    echo -e "  ${YELLOW}If you installed in a venv, make sure it's activated${NC}"
+    echo -e "  ${YELLOW}Or add the install path to your PATH${NC}"
+elif [ "$SX_CMD" = "scoutx" ]; then
+    # Check if sx is available or conflicted
+    if sx --version 2>&1 | grep -qi "scoutx\|ScoutX\|Genesis"; then
+        echo -e "  ${GREEN}ScoutX is ready! Both 'sx' and 'scoutx' commands work.${NC}"
+    else
+        echo -e "  ${GREEN}ScoutX is ready!${NC}"
+        echo -e "  ${YELLOW}NOTE: 'sx' is taken by lrzsz (ZMODEM). Use 'scoutx' instead.${NC}"
+        echo -e "  ${YELLOW}To fix: sudo apt remove lrzsz  (if you don't use ZMODEM)${NC}"
+        SX_CMD="scoutx"
+    fi
+fi
 
 echo ""
 echo -e "${GREEN}Installation complete!${NC}"
-echo -e "  Run a scan:     ${BLUE}sx scan example.com${NC}"
-echo -e "  Check tools:    ${BLUE}sx doctor${NC}"
-echo -e "  Install tools:  ${BLUE}sx doctor --install all${NC}"
+if [ "$SX_CMD" = "scoutx" ]; then
+    echo -e "  Run a scan:     ${BLUE}scoutx scan example.com${NC}"
+    echo -e "  Check tools:    ${BLUE}scoutx doctor${NC}"
+    echo -e "  Install tools:  ${BLUE}scoutx doctor --install all${NC}"
+else
+    echo -e "  Run a scan:     ${BLUE}sx scan example.com${NC}"
+    echo -e "  Check tools:    ${BLUE}sx doctor${NC}"
+    echo -e "  Install tools:  ${BLUE}sx doctor --install all${NC}"
+fi
 echo ""
