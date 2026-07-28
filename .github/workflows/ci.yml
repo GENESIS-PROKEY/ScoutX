@@ -20,8 +20,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
-          pip install pytest ruff mypy playwright
+          pip install -e '.[dev,full]'
+          pip install pytest-asyncio anyio types-PyYAML playwright
           playwright install --with-deps chromium
 
       - name: Lint with ruff
@@ -30,9 +30,9 @@ jobs:
 
       - name: Type check with mypy
         run: |
-          mypy .
+          mypy scoutx/
         continue-on-error: true
 
       - name: Test with pytest
         run: |
-          pytest
+          pytest -v
