@@ -32,7 +32,7 @@ docker run --rm -v $(pwd)/results:/app/results scoutx scan example.com
 ## 2. Verify Installation
 
 ```bash
-sx doctor
+scoutx doctor
 ```
 
 This checks Python version, dependencies, Playwright browsers, and external tools.
@@ -42,7 +42,7 @@ This checks Python version, dependencies, Playwright browsers, and external tool
 ## 3. Your First Scan
 
 ```bash
-sx scan example.com
+scoutx scan example.com
 ```
 
 ScoutX will:
@@ -82,9 +82,9 @@ results/example.com/
 
 | Profile | Best For | Command |
 |---------|----------|---------|
-| `safe` | Bug bounty (won't get you banned) | `sx scan target.com --profile safe` |
-| `balanced` | General recon | `sx scan target.com --profile balanced` |
-| `aggressive` | Authorized pentests only | `sx scan target.com --profile aggressive` |
+| `safe` | Bug bounty (won't get you banned) | `scoutx scan target.com --profile safe` |
+| `balanced` | General recon | `scoutx scan target.com --profile balanced` |
+| `aggressive` | Authorized pentests only | `scoutx scan target.com --profile aggressive` |
 
 ---
 
@@ -92,19 +92,19 @@ results/example.com/
 
 ```bash
 # Full scan with reports
-sx scan target.com
+scoutx scan target.com
 
 # Quick subdomain check
-sx full target.com --profile safe
+scoutx full target.com --profile safe
 
 # List all plugins
-sx plugin list
+scoutx plugin list
 
 # Compare two scans
-sx diff results/scan1 results/scan2
+scoutx diff results/scan1 results/scan2
 
 # Check your setup
-sx doctor
+scoutx doctor
 ```
 
 ---

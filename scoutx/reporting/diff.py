@@ -5,8 +5,8 @@ Feed it two scan directories and it tells you exactly what's new,
 what disappeared, and what changed. Essential for continuous monitoring.
 
 Usage:
-    sx diff scan-001 scan-002
-    sx diff latest previous
+    scoutx diff scan-001 scan-002
+    scoutx diff latest previous
 """
 from __future__ import annotations
 

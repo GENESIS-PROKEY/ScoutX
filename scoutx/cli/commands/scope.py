@@ -51,7 +51,7 @@ def register(app: typer.Typer) -> None:
 
         scope_path = output / "scope.yaml"
         if not scope_path.exists():
-            info("No scope file found. Run `sx scope add <target>` to create one.")
+            info("No scope file found. Run `scoutx scope add <target>` to create one.")
             return
         scope = Scope.load(scope_path)
         data: dict[str, str] = {}

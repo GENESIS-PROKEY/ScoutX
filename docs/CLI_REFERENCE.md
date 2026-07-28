@@ -1,13 +1,14 @@
 # ScoutX CLI Reference
+> Both `scoutx` and `sx` are valid command names. Use `scoutx` if `sx` conflicts with other tools on your system.
 
-Complete reference for all `sx` commands.
+Complete reference for all `scoutx` commands.
 
 ---
 
 ## Global Options
 
 ```
-sx [OPTIONS] COMMAND [ARGS]
+scoutx [OPTIONS] COMMAND [ARGS]
 ```
 
 | Option | Description |
@@ -20,12 +21,12 @@ sx [OPTIONS] COMMAND [ARGS]
 
 ## Recon Commands
 
-### sx scan
+### scoutx scan
 
-Run the full reconnaissance pipeline. Alias for `sx full`.
+Run the full reconnaissance pipeline. Alias for `scoutx full`.
 
 ```
-sx scan <TARGET> [OPTIONS]
+scoutx scan <TARGET> [OPTIONS]
 ```
 
 | Option | Default | Description |
@@ -40,33 +41,33 @@ sx scan <TARGET> [OPTIONS]
 **Examples:**
 
 ```bash
-sx scan example.com
-sx scan example.com --profile aggressive
-sx scan example.com --format sarif --no-report
+scoutx scan example.com
+scoutx scan example.com --profile aggressive
+scoutx scan example.com --format sarif --no-report
 ```
 
-### sx full
+### scoutx full
 
-Same as `sx scan`. Runs the complete async pipeline.
+Same as `scoutx scan`. Runs the complete async pipeline.
 
-### sx resume
+### scoutx resume
 
 Resume an interrupted scan from the last checkpoint.
 
 ```
-sx resume <TARGET> [OPTIONS]
+scoutx resume <TARGET> [OPTIONS]
 ```
 
 ---
 
 ## Analysis Commands
 
-### sx diff
+### scoutx diff
 
 Compare two scan result directories and show changes.
 
 ```
-sx diff <DIR1> <DIR2> [OPTIONS]
+scoutx diff <DIR1> <DIR2> [OPTIONS]
 ```
 
 | Option | Default | Description |
@@ -76,21 +77,21 @@ sx diff <DIR1> <DIR2> [OPTIONS]
 **Example:**
 
 ```bash
-sx diff results/example.com_20260101 results/example.com_20260201
+scoutx diff results/example.com_20260101 results/example.com_20260201
 ```
 
 ---
 
 ## Management Commands
 
-### sx scope
+### scoutx scope
 
 Manage target scope definitions.
 
 ```
-sx scope add <TARGET> [OPTIONS]
-sx scope list
-sx scope remove <TARGET>
+scoutx scope add <TARGET> [OPTIONS]
+scoutx scope list
+scoutx scope remove <TARGET>
 ```
 
 | Option | Description |
@@ -98,28 +99,28 @@ sx scope remove <TARGET>
 | `--wildcard` | Include wildcard subdomains |
 | `--exclude` | Patterns to exclude |
 
-### sx plugin
+### scoutx plugin
 
 Manage scanner plugins.
 
 ```
-sx plugin list
-sx plugin info <NAME>
+scoutx plugin list
+scoutx plugin info <NAME>
 ```
 
 **Example:**
 
 ```bash
-sx plugin list
-sx plugin info intelligence
+scoutx plugin list
+scoutx plugin info intelligence
 ```
 
-### sx doctor
+### scoutx doctor
 
 Run self-diagnostics on your ScoutX installation.
 
 ```
-sx doctor
+scoutx doctor
 ```
 
 Checks:
@@ -130,12 +131,12 @@ Checks:
 - External tools (nuclei, nmap)
 - Configuration file
 
-### sx config
+### scoutx config
 
 Show the resolved configuration (defaults + overrides).
 
 ```
-sx config
+scoutx config
 ```
 
 ---

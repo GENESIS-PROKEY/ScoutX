@@ -78,12 +78,12 @@ Quick version:
 ## Reporting Bugs
 
 Open an issue with:
-- ScoutX version (`sx --version`)
+- ScoutX version (`scoutx --version`)
 - Python version
 - OS and version
 - Steps to reproduce
 - Expected vs actual behavior
-- `sx doctor` output
+- `scoutx doctor` output
 
 ---
 

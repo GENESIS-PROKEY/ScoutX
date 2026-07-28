@@ -1,4 +1,4 @@
-"""sx doctor — Self-diagnostic command with full tool registry integration.
+"""scoutx doctor — Self-diagnostic command with full tool registry integration.
 
 Checks Python environment, dependencies, Playwright, AND all 40+ external
 recon tools from the Elite Methodology. Supports --install to auto-install

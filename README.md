@@ -63,21 +63,23 @@ ScoutX is a modular, async-first reconnaissance framework built for security res
 
 ## Quick Start
 
+> **Note:** On some Linux distros (Kali, Debian), `sx` may conflict with lrzsz. Use `scoutx` instead, or remove lrzsz: `sudo apt remove lrzsz`
+
 ```bash
 # Install
 pip install -e .
 
 # Check what tools you have
-sx doctor
+scoutx doctor
 
 # Auto-install all missing tools
-sx doctor --install all
+scoutx doctor --install all
 
 # Run your first scan
-sx scan example.com
+scoutx scan example.com
 
 # Full power (aggressive mode)
-sx scan example.com --profile aggressive
+scoutx scan example.com --profile aggressive
 ```
 
 That's it. ScoutX runs all 17 plugins, discovers subdomains, probes hosts, scans ports, extracts JS endpoints, hunts secrets, and generates attack chains — automatically.
@@ -130,7 +132,7 @@ ScoutX includes a **52-tool registry** with platform-aware install commands. It 
 ### Check Tool Status
 
 ```bash
-sx doctor
+scoutx doctor
 ```
 
 This shows every tool categorized by type (core, extended, osint, sast, system) with install status.
@@ -138,7 +140,7 @@ This shows every tool categorized by type (core, extended, osint, sast, system) 
 ### Auto-Install All Missing Tools
 
 ```bash
-sx doctor --install all
+scoutx doctor --install all
 ```
 
 ScoutX detects your OS (Linux/Windows/macOS) and runs the appropriate install commands:
@@ -150,16 +152,16 @@ ScoutX detects your OS (Linux/Windows/macOS) and runs the appropriate install co
 ### Install by Category
 
 ```bash
-sx doctor --install core       # Essential PD tools (subfinder, httpx, nuclei, etc.)
-sx doctor --install extended   # Additional Go tools (ffuf, gau, katana, etc.)
-sx doctor --install osint      # OSINT tools (whois, theHarvester, shodan, etc.)
-sx doctor --install sast       # Static analysis (semgrep, retire, eslint, etc.)
-sx doctor --install system     # System tools (nmap, feroxbuster, etc.)
+scoutx doctor --install core       # Essential PD tools (subfinder, httpx, nuclei, etc.)
+scoutx doctor --install extended   # Additional Go tools (ffuf, gau, katana, etc.)
+scoutx doctor --install osint      # OSINT tools (whois, theHarvester, shodan, etc.)
+scoutx doctor --install sast       # Static analysis (semgrep, retire, eslint, etc.)
+scoutx doctor --install system     # System tools (nmap, feroxbuster, etc.)
 ```
 
 ### How It Works
 
-1. `sx doctor` scans your PATH for each tool using `shutil.which()`
+1. `scoutx doctor` scans your PATH for each tool using `shutil.which()`
 2. Missing tools are listed with their install commands
 3. `--install all` runs the async installer which:
    - Detects your platform (Linux/Windows)
@@ -264,8 +266,8 @@ ScoutX integrates with 52 external tools. All are **optional** — ScoutX works 
 | nuclei | Template-based vulnerability scanner | `go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest` |
 | naabu | Fast port scanner | `go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest` |
 | katana | Web crawler | `go install github.com/projectdiscovery/katana/cmd/katana@latest` |
-| dnsx | DNS toolkit | `go install github.com/projectdiscovery/dnsx/v2/cmd/dnsx@latest` |
-| tlsx | TLS data grabber | `go install github.com/projectdiscovery/tlsx/cmd/tlsx@latest` |
+| dnscoutx | DNS toolkit | `go install github.com/projectdiscovery/dnscoutx/v2/cmd/dnscoutx@latest` |
+| tlscoutx | TLS data grabber | `go install github.com/projectdiscovery/tlscoutx/cmd/tlscoutx@latest` |
 | alterx | Subdomain wordlist generator | `go install github.com/projectdiscovery/alterx/cmd/alterx@latest` |
 | uncover | Shodan/Censys/FOFA search | `go install github.com/projectdiscovery/uncover/cmd/uncover@latest` |
 
@@ -346,13 +348,13 @@ ScoutX integrates with 52 external tools. All are **optional** — ScoutX works 
 
 ```bash
 # Safe — for strict bug bounty programs
-sx scan target.com --profile safe
+scoutx scan target.com --profile safe
 
 # Balanced — general purpose (default)
-sx scan target.com --profile balanced
+scoutx scan target.com --profile balanced
 
 # Aggressive — authorized pentests only
-sx scan target.com --profile aggressive
+scoutx scan target.com --profile aggressive
 ```
 
 ---
@@ -435,9 +437,9 @@ ScoutX follows a structured 10-phase methodology based on the Elite Recon Framew
 | Phase | Name | Plugin | Key Tools |
 |-------|------|--------|-----------|
 | 01 | OSINT & Passive Intelligence | `osint` | whois, dig, theHarvester, dnstwist, checkdmarc |
-| 02 | Infrastructure Mapping | `osint` | shodan, uncover, tlsx |
-| 03 | Passive Subdomain Discovery | `subdomains` | subfinder, assetfinder, tlsx |
-| 04 | Active Subdomain Brute-Force | `subdomains` | puredns, gotator, alterx, dnsx |
+| 02 | Infrastructure Mapping | `osint` | shodan, uncover, tlscoutx |
+| 03 | Passive Subdomain Discovery | `subdomains` | subfinder, assetfinder, tlscoutx |
+| 04 | Active Subdomain Brute-Force | `subdomains` | puredns, gotator, alterx, dnscoutx |
 | 05 | HTTP Probing & Tech Fingerprint | `probe` | httpx, whatweb, wafw00f, gowitness |
 | 06 | Port Scanning & Service Enum | `ports` | naabu, nmap, masscan |
 | 07 | URL & Endpoint Discovery | `endpoints` | gau, waybackurls, katana, hakrawler, gospider, waymore, arjun |
@@ -448,7 +450,7 @@ ScoutX follows a structured 10-phase methodology based on the Elite Recon Framew
 ### Check Methodology Readiness
 
 ```bash
-sx doctor
+scoutx doctor
 ```
 
 This shows which tools are available for each methodology phase and what's missing.
@@ -460,56 +462,56 @@ This shows which tools are available for each methodology phase and what's missi
 ### Scanning
 
 ```bash
-sx scan <target>                    # Full scan with all plugins
-sx scan <target> --profile safe     # Conservative scan
-sx scan <target> --profile aggressive  # Full power with active techniques
-sx full <target>                    # Alias for scan
-sx resume <target>                  # Resume interrupted scan
+scoutx scan <target>                    # Full scan with all plugins
+scoutx scan <target> --profile safe     # Conservative scan
+scoutx scan <target> --profile aggressive  # Full power with active techniques
+scoutx full <target>                    # Alias for scan
+scoutx resume <target>                  # Resume interrupted scan
 ```
 
 ### Scope Management
 
 ```bash
-sx scope add <target>               # Add target to scope
-sx scope list                       # List all scoped targets
-sx scope remove <target>            # Remove from scope
+scoutx scope add <target>               # Add target to scope
+scoutx scope list                       # List all scoped targets
+scoutx scope remove <target>            # Remove from scope
 ```
 
 ### Tool Management
 
 ```bash
-sx doctor                           # Check all tool status
-sx doctor --install all             # Install everything
-sx doctor --install core            # Install core PD tools only
-sx doctor --install extended        # Install extended tools
+scoutx doctor                           # Check all tool status
+scoutx doctor --install all             # Install everything
+scoutx doctor --install core            # Install core PD tools only
+scoutx doctor --install extended        # Install extended tools
 ```
 
 ### Plugin Management
 
 ```bash
-sx plugin list                      # List all 17 plugins with status
-sx plugin info <name>               # Show plugin details and dependencies
-sx plugin install <git-url>         # Install community plugin
-sx plugin uninstall <name>          # Remove installed plugin
+scoutx plugin list                      # List all 17 plugins with status
+scoutx plugin info <name>               # Show plugin details and dependencies
+scoutx plugin install <git-url>         # Install community plugin
+scoutx plugin uninstall <name>          # Remove installed plugin
 ```
 
 ### Comparison
 
 ```bash
-sx diff <scan_dir_1> <scan_dir_2>   # Compare two scan results
-sx diff <dir1> <dir2> --format json # JSON diff output
+scoutx diff <scan_dir_1> <scan_dir_2>   # Compare two scan results
+scoutx diff <dir1> <dir2> --format json # JSON diff output
 ```
 
 ### Web Dashboard
 
 ```bash
-sx dashboard                        # Start web dashboard on localhost:8000
+scoutx dashboard                        # Start web dashboard on localhost:8000
 ```
 
 ### Configuration
 
 ```bash
-sx config                           # Show resolved configuration
+scoutx config                           # Show resolved configuration
 ```
 
 ---
@@ -596,7 +598,7 @@ stealth:
 ScoutX includes a built-in dark-themed web dashboard for browsing scan results:
 
 ```bash
-sx dashboard
+scoutx dashboard
 # Opens on http://localhost:8000
 ```
 
@@ -658,7 +660,7 @@ The Docker image comes with Go 1.22+ and core ProjectDiscovery tools pre-install
 ## Architecture
 
 ```
-sx scan target.com
+scoutx scan target.com
     │
     ▼
 [Phase 1: Discovery]       subdomains (12 sources + active brute-force)
@@ -735,9 +737,9 @@ Place your plugin in `scoutx/plugins/builtin/my_scanner/` with an `__init__.py` 
 ### Install Community Plugins
 
 ```bash
-sx plugin install https://github.com/someone/scoutx-plugin-example.git
-sx plugin list
-sx plugin uninstall plugin-name
+scoutx plugin install https://github.com/someone/scoutx-plugin-example.git
+scoutx plugin list
+scoutx plugin uninstall plugin-name
 ```
 
 ---

@@ -71,14 +71,14 @@ def _render_root_help(no_banner: bool = False) -> str:
     if not no_banner:
         help_console.print(banner_renderable(__version__), end="")
         help_console.print()
-    help_console.print("[white]Usage:[/] [cyan]sx[/] [white][OPTIONS] COMMAND [ARGS]...[/]")
+    help_console.print("[white]Usage:[/] [cyan]scoutx[/] [white][OPTIONS] COMMAND [ARGS]...[/] (or use [cyan]sx[/])")
     help_console.print("[dim]Async-first reconnaissance framework for attack surface discovery.[/]")
     help_console.print()
     help_console.print(f"[{BRAND_PRIMARY}]Quick Start[/]")
-    help_console.print("  [white]sx doctor[/]")
-    help_console.print("  [white]sx scan example.com --profile safe[/]")
-    help_console.print("  [white]sx report example.com[/]")
-    help_console.print("[dim]Tip: `sx scan` is an alias for `sx full`.[/]")
+    help_console.print("  [white]scoutx doctor[/]")
+    help_console.print("  [white]scoutx scan example.com --profile safe[/]")
+    help_console.print("  [white]scoutx report example.com[/]")
+    help_console.print("[dim]Tip: `scoutx scan` is an alias for `scoutx full`. You can also use the `sx` alias.[/]")
     help_console.print()
 
     for group_name, commands in COMMAND_GROUPS.items():

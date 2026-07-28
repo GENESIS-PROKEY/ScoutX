@@ -37,15 +37,15 @@ if (Test-Path "pyproject.toml") {
 Write-Host ""
 Write-Host "[3/3] Verifying..." -ForegroundColor Blue
 try {
-    sx --version
+    scoutx --version
     Write-Host "  ScoutX is ready!" -ForegroundColor Green
 } catch {
-    Write-Host "  Run: sx --help" -ForegroundColor Yellow
+    Write-Host "  Run: scoutx --help" -ForegroundColor Yellow
 }
 
 Write-Host ""
 Write-Host "Installation complete!" -ForegroundColor Green
-Write-Host "  Run a scan:     sx scan example.com" -ForegroundColor Cyan
-Write-Host "  Check tools:    sx doctor" -ForegroundColor Cyan
-Write-Host "  Install tools:  sx doctor --install all" -ForegroundColor Cyan
+Write-Host "  Run a scan:     scoutx scan example.com" -ForegroundColor Cyan
+Write-Host "  Check tools:    scoutx doctor" -ForegroundColor Cyan
+Write-Host "  Install tools:  scoutx doctor --install all" -ForegroundColor Cyan
 Write-Host ""
