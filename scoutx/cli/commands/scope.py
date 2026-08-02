@@ -106,3 +106,74 @@ def register(app: typer.Typer) -> None:
 
         scope.save(scope_path)
         success(f"Imported {added} targets into scope")
+
+    @app.command("save")
+    def scope_save(
+        name: str = typer.Argument(..., help="Profile name to save as"),
+        output: Path = typer.Option(Path("results"), "-o", "--output"),
+    ) -> None:
+        """Save current scope as a named profile."""
+        from scoutx.core.scope import Scope
+
+        scope_path = output / "scope.yaml"
+        if not scope_path.exists():
+            error("No scope file found. Add targets first with `scoutx scope add`.")
+            raise typer.Exit(code=1)
+
+        profiles_dir = output / "scope_profiles"
+        profiles_dir.mkdir(parents=True, exist_ok=True)
+
+        scope = Scope.load(scope_path)
+        profile_path = profiles_dir / f"{name}.yaml"
+        scope.save(profile_path)
+        success(f"Scope saved as profile '{name}' at {profile_path}")
+
+    @app.command("load")
+    def scope_load(
+        name: str = typer.Argument(..., help="Profile name to load"),
+        output: Path = typer.Option(Path("results"), "-o", "--output"),
+    ) -> None:
+        """Load a named scope profile as the active scope."""
+        from scoutx.core.scope import Scope
+
+        profiles_dir = output / "scope_profiles"
+        profile_path = profiles_dir / f"{name}.yaml"
+
+        if not profile_path.exists():
+            # List available profiles
+            if profiles_dir.exists():
+                available = [p.stem for p in profiles_dir.glob("*.yaml")]
+                if available:
+                    error(f"Profile '{name}' not found. Available: {', '.join(available)}")
+                else:
+                    error("No saved profiles. Save one with `scoutx scope save <name>`.")
+            else:
+                error("No saved profiles. Save one with `scoutx scope save <name>`.")
+            raise typer.Exit(code=1)
+
+        scope = Scope.load(profile_path)
+        scope_path = output / "scope.yaml"
+        scope.save(scope_path)
+        success(f"Loaded scope profile '{name}' ({len(scope.includes)} includes, {len(scope.excludes)} excludes)")
+
+    @app.command("profiles")
+    def scope_profiles(
+        output: Path = typer.Option(Path("results"), "-o", "--output"),
+    ) -> None:
+        """List all saved scope profiles."""
+        profiles_dir = output / "scope_profiles"
+        if not profiles_dir.exists():
+            info("No saved profiles yet. Save one with `scoutx scope save <name>`.")
+            return
+
+        profiles = list(profiles_dir.glob("*.yaml"))
+        if not profiles:
+            info("No saved profiles yet.")
+            return
+
+        data: dict[str, str] = {}
+        for p in sorted(profiles):
+            from scoutx.core.scope import Scope
+            s = Scope.load(p)
+            data[p.stem] = f"{len(s.includes)} includes, {len(s.excludes)} excludes"
+        print_module_summary("Saved Scope Profiles", data)

@@ -182,6 +182,38 @@ class Plugin(ScoutPlugin):
             info("Running wafw00f for enhanced WAF detection...")
             await self._run_wafw00f(alive_hosts)
 
+        # Enrich WAF detections with bypass suggestions from our DB
+        waf_summary: dict[str, int] = {}
+        try:
+            from scoutx.plugins.builtin.probe.waf_bypasses import (
+                detect_waf_from_headers,
+                get_bypass_suggestions,
+            )
+            for host in alive_hosts:
+                headers = host.get("headers", {})
+                # Enhanced detection via our signature DB
+                detected_wafs = detect_waf_from_headers(headers)
+                if detected_wafs and not host.get("waf"):
+                    host["waf"] = detected_wafs[0]
+                # Add bypass suggestions
+                waf_name = host.get("waf", "")
+                if waf_name:
+                    # Normalize WAF name for lookup
+                    waf_key = waf_name.lower().replace(" waf", "").replace(" ", "_").strip()
+                    bypass_data = get_bypass_suggestions(waf_key)
+                    if bypass_data.get("techniques"):
+                        host["waf_bypass_techniques"] = bypass_data["techniques"]
+                        host["waf_bypass_headers"] = bypass_data.get("headers", {})
+                    waf_summary[waf_name] = waf_summary.get(waf_name, 0) + 1
+        except ImportError:
+            logger.debug("WAF bypass module not available")
+        except Exception as waf_exc:
+            logger.debug("WAF bypass enrichment failed: %s", waf_exc)
+
+        if waf_summary:
+            waf_str = ", ".join(f"{name}: {count}" for name, count in waf_summary.items())
+            info(f"WAF detected: {waf_str}")
+
         # Write outputs
         alive_urls = [h["final_url"] for h in alive_hosts]
         atomic_write_text(output_dir / "alive.txt", "\n".join(alive_urls) + "\n")
@@ -191,6 +223,7 @@ class Plugin(ScoutPlugin):
             "total_probed": len(targets),
             "alive": len(alive_hosts),
             "dead": dead_count,
+            "waf_summary": waf_summary,
             "hosts": alive_hosts,
         })
 

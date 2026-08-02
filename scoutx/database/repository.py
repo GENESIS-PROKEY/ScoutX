@@ -191,3 +191,95 @@ class Repository:
             "total_hosts_a": len(hosts_a),
             "total_hosts_b": len(hosts_b),
         }
+
+    # ── Deduplication ──────────────────────────────────────────────────
+
+    async def upsert_host(self, scan_id: str, hostname: str, **kwargs: Any) -> tuple[Host, bool]:
+        """Insert or update a host. Returns (host, is_new).
+
+        If the hostname already exists for this scan, update it instead of
+        creating a duplicate. Also updates last_seen timestamp.
+        """
+        async with self._session() as session:
+            result = await session.execute(
+                select(Host).where(Host.scan_id == scan_id, Host.hostname == hostname)
+            )
+            existing = result.scalar_one_or_none()
+            if existing:
+                for key, value in kwargs.items():
+                    if hasattr(existing, key) and value is not None:
+                        setattr(existing, key, value)
+                existing.last_seen = datetime.now(timezone.utc)
+                await session.commit()
+                return existing, False
+            else:
+                host = Host(
+                    scan_id=scan_id,
+                    hostname=hostname,
+                    first_seen=datetime.now(timezone.utc),
+                    last_seen=datetime.now(timezone.utc),
+                    **kwargs,
+                )
+                session.add(host)
+                await session.commit()
+                return host, True
+
+    async def upsert_finding(
+        self, scan_id: str, plugin_name: str, finding_type: str,
+        title: str, target_url: str = "", **kwargs: Any
+    ) -> tuple[Finding, bool]:
+        """Insert or update a finding. Deduplicates on (scan, type, title, url).
+
+        Returns (finding, is_new).
+        """
+        async with self._session() as session:
+            result = await session.execute(
+                select(Finding).where(
+                    Finding.scan_id == scan_id,
+                    Finding.finding_type == finding_type,
+                    Finding.title == title,
+                    Finding.target_url == target_url,
+                )
+            )
+            existing = result.scalar_one_or_none()
+            if existing:
+                for key, value in kwargs.items():
+                    if hasattr(existing, key) and value is not None:
+                        setattr(existing, key, value)
+                await session.commit()
+                return existing, False
+            else:
+                finding = Finding(
+                    scan_id=scan_id,
+                    plugin_name=plugin_name,
+                    finding_type=finding_type,
+                    title=title,
+                    target_url=target_url,
+                    **kwargs,
+                )
+                session.add(finding)
+                await session.commit()
+                return finding, True
+
+    async def get_unique_hosts_across_scans(self, target: str) -> list[dict[str, Any]]:
+        """Get all unique hostnames ever seen for a target across all scans."""
+        scans = await self.get_scans_for_target(target)
+        all_hosts: dict[str, dict[str, Any]] = {}
+        for scan in scans:
+            hosts = await self.get_hosts(scan.id)
+            for host in hosts:
+                if host.hostname not in all_hosts:
+                    all_hosts[host.hostname] = {
+                        "hostname": host.hostname,
+                        "first_seen": host.first_seen,
+                        "last_seen": host.last_seen,
+                        "scans_seen": 1,
+                    }
+                else:
+                    all_hosts[host.hostname]["scans_seen"] += 1
+                    if host.last_seen and (
+                        not all_hosts[host.hostname]["last_seen"]
+                        or host.last_seen > all_hosts[host.hostname]["last_seen"]
+                    ):
+                        all_hosts[host.hostname]["last_seen"] = host.last_seen
+        return list(all_hosts.values())
