@@ -171,7 +171,7 @@ class Plugin(ScoutPlugin):
                 r = await client.get(f"https://api.bgpview.io/ip/{ip}")
                 if r.status_code == 200:
                     data = r.json().get("data", {})
-                    prefixes = data.get("rir_allocation", {})
+                    data.get("rir_allocation", {})
                     ptr = data.get("ptr_record")
                     asn_info = {}
                     related = data.get("related_prefixes", [])

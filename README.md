@@ -9,12 +9,13 @@
   ⚡ Async Reconnaissance Framework
 ```
 
-**Automated attack surface discovery with methodology-driven reconnaissance, 52-tool auto-installation, and attack chain generation.**
+**Automated attack surface discovery with methodology-driven reconnaissance, 52-tool auto-installation, AI-powered analysis, and attack chain generation.**
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Plugins](https://img.shields.io/badge/plugins-17-purple)]()
+[![Plugins](https://img.shields.io/badge/plugins-21-purple)]()
 [![Tools](https://img.shields.io/badge/tools-52-orange)]()
+[![AI](https://img.shields.io/badge/AI-8%20providers-ff69b4)]()
 [![Tests](https://img.shields.io/badge/tests-47%20passed-brightgreen)]()
 
 ---
@@ -25,7 +26,7 @@
 - [Quick Start](#quick-start)
 - [Installation](#installation)
 - [Auto Tool Installation](#auto-tool-installation)
-- [All 17 Plugins](#all-17-plugins)
+- [All 21 Plugins](#all-21-plugins)
 - [All 52 External Tools](#all-52-external-tools)
 - [Scan Profiles](#scan-profiles)
 - [Attack Chain Engine](#attack-chain-engine)
@@ -49,14 +50,22 @@ ScoutX is a modular, async-first reconnaissance framework built for security res
 
 **What makes it different:**
 
-- 🔥 **17 built-in plugins** across 7 execution phases
+- 🔥 **21 built-in plugins** across 8 execution phases
 - 🛠️ **52 external tools** with automatic detection and installation
 - 📋 **10-phase methodology** based on Elite Recon standards
-- ⛓️ **Attack Chain Engine** — auto-generates step-by-step attack playbooks
+- ⛓️ **Attack Chain Engine** — auto-generates step-by-step attack playbooks with CVSS v3.1 scoring
 - 🧠 **Intelligence Engine** — risk scoring (0-100), attack campaigns, priority targeting
+- 🤖 **AI Integration** — 8 LLM providers (Ollama, OpenAI, Claude, DeepSeek, Groq, Grok, OpenRouter, custom)
+- 🎯 **Live TUI** — real-time scan progress with Rich terminal dashboard
+- ☁️ **Cloud Recon** — AWS, GCP, Azure, Cloudflare, Heroku, Vercel, Netlify detection
+- 🔍 **API Discovery** — OpenAPI/Swagger/GraphQL introspection
+- 🐙 **GitHub Dorking** — find leaked credentials in public repos
+- 📜 **Historical DNS** — Wayback Machine + SecurityTrails archive mining
+- 🛡️ **WAF Bypass DB** — detection signatures + documented bypass techniques for 10 WAFs
 - 👻 **Ghost Mode** — adaptive rate limiting, proxy rotation, stealth headers
-- 📊 **5 output formats** — HTML, Markdown, CSV, SARIF, PDF
-- 🔄 **Diff Engine** — compare scans to track attack surface drift
+- 📊 **7 output formats** — HTML, Markdown, CSV, SARIF, PDF, Obsidian, JSON
+- 🔄 **Diff Engine + Timeline** — compare scans and visualize attack surface drift
+- 📂 **Wordlist Manager** — SecLists, Assetnote, FuzzDB download + custom wordlists
 - 🌐 **Cross-platform** — works on Linux, Windows, macOS, and Docker
 
 ---
@@ -82,7 +91,24 @@ scoutx scan example.com
 scoutx scan example.com --profile aggressive
 ```
 
-That's it. ScoutX runs all 17 plugins, discovers subdomains, probes hosts, scans ports, extracts JS endpoints, hunts secrets, and generates attack chains — automatically.
+That's it. ScoutX runs all 21 plugins, discovers subdomains, probes hosts, scans ports, extracts JS endpoints, hunts secrets, detects cloud assets, discovers APIs, and generates attack chains — automatically.
+
+### Quick Modes
+
+```bash
+# Passive mode — OSINT only, zero active requests
+scoutx scan example.com --passive
+
+# Quick scan — subdomains + probe + ports only (~60s)
+scoutx scan example.com --quick
+
+# With AI-powered analysis (uses local Ollama)
+scoutx scan example.com --profile balanced
+# (set ai.provider=ollama in scoutx.yaml)
+
+# Generate Obsidian vault from scan results
+scoutx report example.com --format html,md,obsidian
+```
 
 ---
 
@@ -171,9 +197,9 @@ scoutx doctor --install system     # System tools (nmap, feroxbuster, etc.)
 
 ---
 
-## All 17 Plugins
+## All 21 Plugins
 
-ScoutX ships with 17 built-in plugins organized into 7 execution phases. Plugins in the same phase run **concurrently**. Dependencies are resolved via topological sort.
+ScoutX ships with 21 built-in plugins organized into 8 execution phases. Plugins in the same phase run **concurrently**. Dependencies are resolved via topological sort.
 
 | Phase | Plugin | Version | Description |
 |-------|--------|---------|-------------|
@@ -188,12 +214,16 @@ ScoutX ships with 17 built-in plugins organized into 7 execution phases. Plugins
 | 3 | `parameters` | v0.1.0 | URL parameter discovery from Wayback Machine & OTX |
 | 3 | `screenshots` | v0.1.0 | Full-page screenshots via Playwright |
 | 3 | `directories` | v0.1.0 | Directory brute-force (ffuf/feroxbuster/built-in) + sensitive files |
+| 3 | `cloud` | v0.1.0 | ☁️ Cloud asset discovery — AWS, GCP, Azure, Cloudflare, Vercel, Netlify |
+| 3 | `api_discovery` | v0.1.0 | 🔍 API schema discovery — OpenAPI, Swagger, GraphQL introspection |
 | 4 | `endpoints` | v0.1.0 | Endpoint extraction from downloaded JS files |
 | 4 | `secrets` | v0.2.0 | 35+ regex patterns, Shannon entropy, JWT decode, S3 verify, GitHub hunting |
 | 4 | `js_deep` | v0.1.0 | Source maps, webpack chunks, obfuscation detection, SAST (semgrep/retire) |
+| 4 | `historical` | v0.1.0 | 📜 Wayback Machine URLs + SecurityTrails historical DNS records |
+| 4 | `github_dork` | v0.1.0 | 🐙 GitHub dorking — find leaked credentials in public repositories |
 | 5 | `intelligence` | v0.1.0 | Risk scoring (0-100), attack campaigns, priority queue |
 | 5 | `nuclei` | v0.1.0 | Template-based vuln scanning with smart template selection |
-| 6 | `attack_chains` | v0.1.0 | Auto-generates attack chains with step-by-step playbooks |
+| 6 | `attack_chains` | v0.1.0 | ⛓️ Attack chains with CVSS v3.1 scoring + AI narrative generation |
 
 ### Plugin Details
 
@@ -339,12 +369,17 @@ ScoutX integrates with 52 external tools. All are **optional** — ScoutX works 
 | `safe` | Low | Conservative | Top 100 | ❌ No | Bug bounty programs with strict rules |
 | `balanced` | Medium | Standard | Top 100 | ❌ No | General recon (default) |
 | `aggressive` | High | Minimal | Top 1000 | ✅ Yes | Authorized pentests only |
+| `passive` | None | N/A | N/A | ❌ No | OSINT only — zero active requests |
+| `quick` | Low | Standard | Top 100 | ❌ No | Fast ~60s scan: subdomains + probe + ports |
 
 **Aggressive mode** unlocks:
 - Active subdomain brute-forcing (puredns + gotator/alterx permutations)
 - Higher concurrency limits
 - Top 1000 port scanning
 - Deeper crawling depth
+
+**Passive mode** runs only: `subdomains`, `osint`, `intelligence`, `historical`, `github_dork`
+**Quick mode** runs only: `subdomains`, `probe`, `ports`
 
 ```bash
 # Safe — for strict bug bounty programs
@@ -355,17 +390,23 @@ scoutx scan target.com --profile balanced
 
 # Aggressive — authorized pentests only
 scoutx scan target.com --profile aggressive
+
+# Passive — OSINT only, zero network touches
+scoutx scan target.com --passive
+
+# Quick — fast surface scan (~60s)
+scoutx scan target.com --quick
 ```
 
 ---
 
 ## Attack Chain Engine
 
-After reconnaissance, ScoutX automatically analyzes findings and generates **attack chains** — step-by-step playbooks showing how discovered vulnerabilities could be exploited.
+After reconnaissance, ScoutX automatically analyzes findings and generates **attack chains** — step-by-step playbooks with CVSS v3.1 scoring and optional AI-generated narratives.
 
 ### How It Works
 
-1. **Pattern Detection** — 10 detectors scan all plugin results for exploitable patterns:
+1. **Pattern Detection** — 13 detectors scan all plugin results for exploitable patterns:
 
 | Detector | What It Finds |
 |----------|--------------|
@@ -379,11 +420,16 @@ After reconnaissance, ScoutX automatically analyzes findings and generates **att
 | SSRF Candidates | URL parameters accepting external URLs |
 | Auth Bypass | Default credentials, JWT with none algorithm |
 | SQLi Candidates | Error-based SQL patterns in responses |
+| **Cloud Misconfig** | **Exposed S3 buckets, public cloud assets, misconfigured storage** |
+| **API Exposure** | **OpenAPI/Swagger docs, GraphQL introspection in production** |
+| **GitHub Code Leaks** | **Leaked credentials and configs found via GitHub dorking** |
 
-2. **Chain Building** — Findings are connected into attack chains showing the full exploitation path:
-   - Each chain has a severity (critical/high/medium/low)
+2. **CVSS v3.1 Scoring** — Each chain gets an auto-calculated CVSS base score and vector string
+3. **Chain Building** — Findings are connected into attack chains showing the full exploitation path:
+   - Each chain has a severity (critical/high/medium/low) + CVSS score
    - Steps include the technique, target, tool to use, and expected evidence
    - Verification commands are provided for manual confirmation
+4. **AI Narration** (optional) — If an AI provider is configured, chains get natural-language exploitation narratives
 
 3. **Vulnerability Checklist** — 88 checks across 14 categories mapped from the master checklist:
 
@@ -524,7 +570,9 @@ scoutx config                           # Show resolved configuration
 | Markdown | `--format md` | Git-friendly, README-compatible |
 | CSV | `--format csv` | Spreadsheet analysis |
 | SARIF | `--format sarif` | GitHub Security tab integration |
-| PDF | `--format pdf` | Professional PDF (requires weasyprint) |
+| PDF | `--format pdf` | Professional PDF (requires weasyprint or playwright) |
+| **Obsidian** | `--format obsidian` | **Obsidian vault with YAML frontmatter + wiki-links** |
+| JSON | `--format json` | Raw structured data |
 
 All outputs are saved to `results/<target>/`:
 
@@ -567,6 +615,47 @@ results/example.com/
     ├── report.csv
     └── report.sarif
 ```
+
+---
+
+## AI Integration
+
+ScoutX supports **8 LLM providers** for AI-powered analysis narratives. AI is optional — ScoutX works fully without it.
+
+### Supported Providers
+
+| Provider | Config Value | Notes |
+|----------|-------------|-------|
+| Ollama | `ollama` | Local, private, no API key needed |
+| OpenAI | `openai` | GPT-4o, GPT-4, GPT-3.5 |
+| Claude | `claude` | Anthropic Claude 3.5/4 |
+| DeepSeek | `deepseek` | Cost-effective, via OpenAI-compat |
+| Groq | `groq` | Ultra-fast inference |
+| Grok | `grok` | xAI's model |
+| OpenRouter | `openrouter` | Access 100+ models |
+| Custom | `custom` | Any OpenAI-compatible endpoint |
+
+### Configuration
+
+In `scoutx.yaml`:
+
+```yaml
+ai:
+  provider: ollama          # or openai, claude, deepseek, groq, etc.
+  model: llama3.2           # model name
+  api_key: ""               # API key (not needed for ollama)
+  base_url: ""              # custom endpoint (auto-detected for known providers)
+```
+
+Or via environment variables:
+
+```bash
+export SCOUTX_AI_PROVIDER=openai
+export SCOUTX_AI_MODEL=gpt-4o
+export SCOUTX_AI_API_KEY=sk-...
+```
+
+When AI is configured, attack chains get **natural-language exploitation narratives** — pentester-style write-ups generated from raw chain data.
 
 ---
 

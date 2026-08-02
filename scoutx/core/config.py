@@ -21,6 +21,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "censys": "",
         "chaos": "",
         "alienvault": "",
+        "github": "",
     },
     "sources": {
         "crtsh": True,
@@ -85,6 +86,19 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "rate_limits": {"probe": 30, "js": 15, "screenshots": 3, "nuclei": 50},
             "request_ceilings": {"probe": 1500, "js_html": 100, "screenshots": 75, "nuclei_targets": 750},
         },
+        "passive": {
+            "concurrency": {"probe": 0, "js": 0, "screenshots": 0, "nuclei": 0, "dns": 30, "ports": 0},
+            "rate_limits": {"probe": 0, "js": 0, "screenshots": 0, "nuclei": 0},
+            "request_ceilings": {"probe": 0, "js_html": 0, "screenshots": 0, "nuclei_targets": 0},
+            "plugin_whitelist": ["subdomains", "osint", "intelligence", "historical", "github_dork"],
+        },
+        "quick": {
+            "concurrency": {"probe": 30, "js": 0, "screenshots": 0, "nuclei": 0, "dns": 50, "ports": 50},
+            "rate_limits": {"probe": 10, "js": 0, "screenshots": 0, "nuclei": 0},
+            "request_ceilings": {"probe": 200, "js_html": 0, "screenshots": 0, "nuclei_targets": 0},
+            "plugin_whitelist": ["subdomains", "probe", "ports"],
+            "timeout_override": 60,
+        },
     },
     "stealth": {
         "proxy": "",
@@ -107,6 +121,17 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "includes": [],
         "excludes": [],
         "wildcard": True,
+    },
+    "ai": {
+        "provider": "none",  # ollama|openai|claude|deepseek|groq|grok|openrouter|custom|none
+        "model": "",         # Provider-specific model name (uses default if empty)
+        "api_key": "",       # API key (not needed for Ollama)
+        "base_url": "",      # Custom endpoint URL (for self-hosted/custom providers)
+    },
+    "wordlists": {
+        "directories": "",   # Path to custom directory wordlist
+        "subdomains": "",    # Path to custom subdomain wordlist
+        "parameters": "",    # Path to custom parameter wordlist
     },
 }
 

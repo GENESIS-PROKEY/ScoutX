@@ -683,6 +683,161 @@ def detect_tech_cve_chains(scan_data: dict[str, Any]) -> list[AttackChain]:
 
 
 # ---------------------------------------------------------------------------
+# Pattern 11: Cloud Misconfiguration
+# ---------------------------------------------------------------------------
+def detect_cloud_misconfig(scan_data: dict[str, Any]) -> list[AttackChain]:
+    """S3 buckets, exposed cloud assets, and misconfigured cloud services."""
+    chains: list[AttackChain] = []
+    cloud_data = scan_data.get("cloud", {})
+
+    # S3 buckets
+    buckets = cloud_data.get("s3_buckets", [])
+    for bucket in buckets[:10]:
+        chain_id = f"chain-cloud-s3-{hashlib.md5(bucket.encode()).hexdigest()[:8]}"
+        chains.append(AttackChain(
+            id=chain_id,
+            title=f"Exposed S3 Bucket: {bucket}",
+            severity="high",
+            confidence=0.7,
+            category="data_exfiltration",
+            description=(
+                f"S3 bucket '{bucket}' was discovered in scan data. "
+                f"If publicly accessible, it may contain sensitive files, backups, "
+                f"or configuration data."
+            ),
+            target_host=bucket,
+            affected_assets=[bucket],
+            prerequisites=[f"S3 bucket '{bucket}' is publicly accessible"],
+            steps=[
+                AttackStep(1, "Verify bucket exists", f"aws s3 ls s3://{bucket}/ --no-sign-request", "aws-cli", "List of files or 'Access Denied'"),
+                AttackStep(2, "Check bucket ACL", f"aws s3api get-bucket-acl --bucket {bucket} --no-sign-request", "aws-cli", "ACL permissions"),
+                AttackStep(3, "Download interesting files", f"aws s3 sync s3://{bucket}/ ./loot/{bucket}/ --no-sign-request", "aws-cli", "Downloaded files"),
+            ],
+            tools_needed=["aws-cli"],
+            mitigation="Restrict S3 bucket policy. Enable 'Block Public Access' at the account level.",
+            references=["https://owasp.org/www-project-web-security-testing-guide/"],
+        ))
+
+    return chains
+
+
+# ---------------------------------------------------------------------------
+# Pattern 12: API Exposure
+# ---------------------------------------------------------------------------
+def detect_api_exposure(scan_data: dict[str, Any]) -> list[AttackChain]:
+    """Exposed API documentation, GraphQL introspection, and unprotected endpoints."""
+    chains: list[AttackChain] = []
+    api_data = scan_data.get("api_discovery", {})
+
+    # OpenAPI/Swagger schemas
+    for api in api_data.get("api_schemas", []):
+        url = api.get("url", "")
+        endpoints_count = api.get("endpoints_count", 0)
+        chain_id = f"chain-api-{hashlib.md5(url.encode()).hexdigest()[:8]}"
+
+        chains.append(AttackChain(
+            id=chain_id,
+            title=f"Exposed API Documentation: {url}",
+            severity="medium",
+            confidence=0.8,
+            category="internal_access",
+            description=(
+                f"API documentation at {url} exposes {endpoints_count} endpoints. "
+                f"This reveals internal API structure, parameters, and potentially "
+                f"sensitive endpoints that may lack authentication."
+            ),
+            target_host=url,
+            affected_assets=[url],
+            prerequisites=["API docs publicly accessible"],
+            steps=[
+                AttackStep(1, "Download API schema", f"curl -s '{url}' | jq .", "curl/jq", "Full API specification"),
+                AttackStep(2, "Test unauthenticated access", "Test each endpoint without auth tokens", "httpx/burp", "200 OK on sensitive endpoints"),
+                AttackStep(3, "Check for sensitive endpoints", "Look for /admin, /users, /config paths", "manual", "Sensitive data exposure"),
+            ],
+            tools_needed=["curl", "jq", "httpx"],
+            mitigation="Disable public API docs in production. Require auth for Swagger/OpenAPI endpoints.",
+        ))
+
+    # GraphQL introspection
+    for gql in api_data.get("graphql_endpoints", []):
+        url = gql.get("url", "")
+        schema = gql.get("schema", {})
+        types_count = schema.get("types_count", 0) if schema else 0
+        chain_id = f"chain-gql-{hashlib.md5(url.encode()).hexdigest()[:8]}"
+
+        chains.append(AttackChain(
+            id=chain_id,
+            title=f"GraphQL Introspection Enabled: {url}",
+            severity="medium",
+            confidence=0.9,
+            category="internal_access",
+            description=(
+                f"GraphQL endpoint at {url} has introspection enabled, "
+                f"exposing {types_count} types. This reveals the entire API schema."
+            ),
+            target_host=url,
+            affected_assets=[url],
+            steps=[
+                AttackStep(1, "Run introspection query", f"curl -X POST '{url}' -H 'Content-Type: application/json' -d '{{\"query\":\"{{__schema{{types{{name}}}}}}\"}}'", "curl", "Full schema dump"),
+                AttackStep(2, "Enumerate mutations", "Query for mutation types and their arguments", "graphql-client", "Writable operations"),
+                AttackStep(3, "Test authorization", "Execute queries/mutations without valid auth", "graphql-client", "Unauthorized data access"),
+            ],
+            tools_needed=["curl", "graphql-voyager", "graphql-client"],
+            mitigation="Disable introspection in production. Use graphql-armor or similar.",
+        ))
+
+    return chains
+
+
+# ---------------------------------------------------------------------------
+# Pattern 13: GitHub Code Leak
+# ---------------------------------------------------------------------------
+def detect_github_leaks(scan_data: dict[str, Any]) -> list[AttackChain]:
+    """Leaked credentials and configs found via GitHub dorking."""
+    chains: list[AttackChain] = []
+    gh_data = scan_data.get("github_dork", {})
+    findings = gh_data.get("findings", [])
+
+    if not findings:
+        return chains
+
+    # Group by repository
+    repos: dict[str, list[dict]] = {}
+    for f in findings:
+        repo = f.get("repository", "unknown")
+        repos.setdefault(repo, []).append(f)
+
+    for repo, repo_findings in repos.items():
+        chain_id = f"chain-github-{hashlib.md5(repo.encode()).hexdigest()[:8]}"
+        queries = [f.get("query", "") for f in repo_findings[:5]]
+
+        chains.append(AttackChain(
+            id=chain_id,
+            title=f"Code Exposure in {repo}",
+            severity="high",
+            confidence=0.6,
+            category="secret_exploitation",
+            description=(
+                f"GitHub repository {repo} contains {len(repo_findings)} matches "
+                f"for sensitive patterns: {', '.join(queries[:3])}. "
+                f"This may include leaked API keys, passwords, or internal configs."
+            ),
+            target_host=repo,
+            affected_assets=[f.get("html_url", "") for f in repo_findings[:5]],
+            steps=[
+                AttackStep(1, "Review matched files", f"Visit {repo_findings[0].get('html_url', '')}", "browser", "Leaked secrets or config"),
+                AttackStep(2, "Check git history", f"git log --all --oneline -- {repo_findings[0].get('file_path', '')}", "git", "Historical commits with secrets"),
+                AttackStep(3, "Validate credentials", "Test discovered keys/tokens against target APIs", "curl/httpx", "Authenticated access"),
+            ],
+            tools_needed=["git", "trufflehog", "gitleaks"],
+            mitigation="Rotate all exposed credentials. Use .gitignore and pre-commit hooks. Enable GitHub secret scanning.",
+            references=["https://docs.github.com/en/code-security/secret-scanning"],
+        ))
+
+    return chains
+
+
+# ---------------------------------------------------------------------------
 # MASTER PATTERN REGISTRY
 # ---------------------------------------------------------------------------
 ALL_PATTERNS = [
@@ -696,4 +851,7 @@ ALL_PATTERNS = [
     detect_sensitive_services,
     detect_internal_endpoints,
     detect_tech_cve_chains,
+    detect_cloud_misconfig,
+    detect_api_exposure,
+    detect_github_leaks,
 ]

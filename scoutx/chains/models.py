@@ -40,6 +40,8 @@ class AttackChain:
     evidence: dict[str, Any] = field(default_factory=dict)    # Raw recon data
     target_host: str = ""             # Which host this applies to
     affected_assets: list[str] = field(default_factory=list)  # URLs, subdomains, etc.
+    cvss_score: float = 0.0           # CVSS v3.1 base score (auto-calculated)
+    cvss_vector: str = ""             # CVSS v3.1 vector string
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for JSON export."""
@@ -68,6 +70,8 @@ class AttackChain:
             "references": self.references,
             "mitigation": self.mitigation,
             "evidence": self.evidence,
+            "cvss_score": self.cvss_score,
+            "cvss_vector": self.cvss_vector,
         }
 
 

@@ -61,7 +61,6 @@ class Plugin(ScoutPlugin):
         parameterized_urls: list[dict[str, Any]] = []
 
         # Source 1: Wayback Machine (with retry — this API is flaky)
-        wayback_fetched = False
         for attempt in range(3):
             try:
                 async with httpx.AsyncClient(
@@ -85,7 +84,6 @@ class Plugin(ScoutPlugin):
                             if url and "?" in url:
                                 all_urls.add(url)
                         info(f"  Wayback: {len(all_urls)} parameterized URLs")
-                        wayback_fetched = True
                         break
                     elif resp.status_code in (429, 503):
                         wait = 2 ** (attempt + 1)

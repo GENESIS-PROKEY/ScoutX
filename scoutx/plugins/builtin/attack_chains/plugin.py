@@ -55,6 +55,43 @@ class Plugin(ScoutPlugin):
         # Also save raw data
         write_json(output_dir / "chain_data.json", report.to_dict())
 
+        # CVSS scoring — auto-calculate scores for each chain
+        try:
+            from scoutx.chains.cvss import score_chain
+            for chain in report.chains:
+                cvss_score, cvss_vector = score_chain(chain.category)
+                chain.cvss_score = cvss_score
+                chain.cvss_vector = cvss_vector
+            # Re-save with CVSS data
+            write_json(output_dir / "chain_data.json", report.to_dict())
+        except Exception as cvss_exc:
+            logger.debug("CVSS scoring skipped: %s", cvss_exc)
+
+        # AI Narrator — generate natural-language exploitation narratives
+        try:
+            from scoutx.ai.client import create_client
+            ai_provider = context.config.get("ai.provider", "none")
+            if ai_provider and ai_provider != "none":
+                client = create_client(
+                    provider=ai_provider,
+                    model=context.config.get("ai.model", ""),
+                    api_key=context.config.get("ai.api_key", ""),
+                    base_url=context.config.get("ai.base_url", ""),
+                )
+                if client:
+                    import asyncio
+                    from scoutx.chains.narrator import ChainNarrator
+                    narrator = ChainNarrator(client)
+                    narrative = asyncio.get_event_loop().run_until_complete(
+                        narrator.narrate_report(report.to_dict())
+                    ) if not asyncio.get_event_loop().is_running() else await narrator.narrate_report(report.to_dict())
+                    if narrative:
+                        narrative_path = output_dir / "narrative.md"
+                        narrative_path.write_text(narrative, encoding="utf-8")
+                        info(f"AI narrative generated ({client.provider_name()})")
+        except Exception as ai_exc:
+            logger.debug("AI narration skipped: %s", ai_exc)
+
         # Summary
         sev = report.severity_counts()
         total = len(report.chains)

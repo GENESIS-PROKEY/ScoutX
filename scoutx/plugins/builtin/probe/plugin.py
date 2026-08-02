@@ -178,10 +178,9 @@ class Plugin(ScoutPlugin):
         info(f"Alive: {len(alive_hosts)} | Dead: {dead_count}")
 
         # Run external wafw00f if available
-        waf_results: dict[str, str] = {}
         if shutil.which("wafw00f"):
             info("Running wafw00f for enhanced WAF detection...")
-            waf_results = await self._run_wafw00f(alive_hosts)
+            await self._run_wafw00f(alive_hosts)
 
         # Write outputs
         alive_urls = [h["final_url"] for h in alive_hosts]

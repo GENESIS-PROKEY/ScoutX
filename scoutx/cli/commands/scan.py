@@ -17,7 +17,7 @@ def register(app: typer.Typer) -> None:
     def full(
         domain: str = typer.Argument(..., help="Target domain, e.g. example.com"),
         output: Path = typer.Option(Path("results"), "-o", "--output", help="Output directory"),
-        profile: str = typer.Option("balanced", "--profile", help="Safety profile: safe, balanced, aggressive"),
+        profile: str = typer.Option("balanced", "--profile", help="Safety profile: safe, balanced, aggressive, passive, quick"),
         proxy: Optional[str] = typer.Option(None, "--proxy", help="HTTP/SOCKS5 proxy"),
         user_agent: Optional[str] = typer.Option(None, "--user-agent", help="Custom User-Agent"),
         random_user_agent: bool = typer.Option(False, "--random-ua", help="Rotate User-Agent per request"),
@@ -25,6 +25,10 @@ def register(app: typer.Typer) -> None:
         report_flag: bool = typer.Option(True, "--report/--no-report", help="Generate report after scan"),
         scope_file: Optional[Path] = typer.Option(None, "--scope", help="Scope definition file"),
         config_path: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+        quick: bool = typer.Option(False, "--quick", help="Quick scan: subdomains + probe + ports only (~60s)"),
+        passive: bool = typer.Option(False, "--passive", help="Passive mode: OSINT only, zero active requests"),
+        no_tui: bool = typer.Option(False, "--no-tui", help="Disable live terminal UI"),
+        report_format: str = typer.Option("html,md", "--format", "-f", help="Report formats: html, md, csv, sarif, obsidian"),
     ) -> None:
         """Run the full async recon pipeline.
 
@@ -44,6 +48,12 @@ def register(app: typer.Typer) -> None:
             target = validate_domain(domain)
             info(f"Target acquired: {target}")
             info(f"Safety profile: {profile}")
+
+            # Override profile for quick/passive shortcuts
+            if quick:
+                profile = "quick"
+            elif passive:
+                profile = "passive"
 
             config = ScoutXConfig(config_path=config_path, overrides={
                 "scan_profile": profile,
@@ -97,6 +107,17 @@ def register(app: typer.Typer) -> None:
 
                     HtmlReporter(summary).generate(report_dir / "report.html")
                     MarkdownReporter(summary).generate(report_dir / "report.md")
+
+                    # Obsidian export if requested
+                    formats = [f.strip().lower() for f in report_format.split(",")]
+                    if "obsidian" in formats:
+                        try:
+                            from scoutx.reporting.obsidian import ObsidianReporter
+                            ObsidianReporter(summary.to_dict() if hasattr(summary, 'to_dict') else {}).generate_sync(report_dir / "obsidian")
+                            success("Obsidian vault exported")
+                        except Exception as obs_exc:
+                            warn(f"Obsidian export failed: {obs_exc}")
+
                     success(f"Reports generated in {report_dir}")
                 except Exception as report_exc:
                     warn(f"Report generation failed: {report_exc}")
@@ -123,6 +144,10 @@ def register(app: typer.Typer) -> None:
         report_flag: bool = typer.Option(True, "--report/--no-report"),
         scope_file: Optional[Path] = typer.Option(None, "--scope"),
         config_path: Optional[Path] = typer.Option(None, "--config", "-c"),
+        quick: bool = typer.Option(False, "--quick"),
+        passive: bool = typer.Option(False, "--passive"),
+        no_tui: bool = typer.Option(False, "--no-tui"),
+        report_format: str = typer.Option("html,md", "--format", "-f"),
     ) -> None:
         """Start a full recon workflow (alias for full)."""
         info("`scan` is an alias for `full` — running the standard workflow.")
@@ -137,6 +162,10 @@ def register(app: typer.Typer) -> None:
             report_flag=report_flag,
             scope_file=scope_file,
             config_path=config_path,
+            quick=quick,
+            passive=passive,
+            no_tui=no_tui,
+            report_format=report_format,
         )
 
     @app.command()
@@ -157,13 +186,17 @@ def register(app: typer.Typer) -> None:
             report_flag=True,
             scope_file=None,
             config_path=config_path,
+            quick=False,
+            passive=False,
+            no_tui=False,
+            report_format="html,md",
         )
 
     @app.command()
     def report(
         domain: str = typer.Argument(..., help="Target domain"),
         output: Path = typer.Option(Path("results"), "-o", "--output"),
-        fmt: str = typer.Option("html,md", "--format", "-f", help="Report formats: html, md, csv, sarif"),
+        fmt: str = typer.Option("html,md", "--format", "-f", help="Report formats: html, md, csv, sarif, obsidian, pdf"),
     ) -> None:
         """Generate reports from existing scan data."""
         from scoutx.reporting.aggregator import ScanAggregator
@@ -213,6 +246,29 @@ def register(app: typer.Typer) -> None:
                 generated.append(f"SARIF: {path}")
                 success(f"SARIF report: {path}")
 
+            if "obsidian" in formats:
+                try:
+                    from scoutx.reporting.obsidian import ObsidianReporter
+                    ObsidianReporter(summary.to_dict() if hasattr(summary, 'to_dict') else {}).generate_sync(report_dir / "obsidian")
+                    generated.append("Obsidian: vault")
+                    success("Obsidian vault exported")
+                except Exception as obs_exc:
+                    warn(f"Obsidian export failed: {obs_exc}")
+
+            if "pdf" in formats:
+                try:
+                    from scoutx.reporting.pdf import PdfReporter
+                    import asyncio
+                    pdf_reporter = PdfReporter()
+                    pdf_path = asyncio.run(pdf_reporter.generate(summary.to_dict() if hasattr(summary, 'to_dict') else {}, report_dir))
+                    if pdf_path:
+                        generated.append(f"PDF: {pdf_path}")
+                        success(f"PDF report: {pdf_path}")
+                    else:
+                        warn("PDF export skipped (install weasyprint or playwright)")
+                except Exception as pdf_exc:
+                    warn(f"PDF export failed: {pdf_exc}")
+
             info(f"Generated {len(generated)} report(s) in {report_dir}")
 
         except ValueError as exc:
@@ -229,6 +285,7 @@ def register(app: typer.Typer) -> None:
         scan_a: str = typer.Option("previous", "--from", "-a", help="Older scan ID or 'previous'"),
         scan_b: str = typer.Option("latest", "--to", "-b", help="Newer scan ID or 'latest'"),
         json_output: bool = typer.Option(False, "--json", help="Output diff as JSON"),
+        timeline: bool = typer.Option(False, "--timeline", help="Generate visual timeline of changes"),
     ) -> None:
         """Compare two scans and show what changed."""
         from scoutx.reporting.diff import ScanDiffer, format_diff_text
@@ -272,6 +329,19 @@ def register(app: typer.Typer) -> None:
             info(f"Total changes: {result.total_changes} ({result.change_velocity} velocity)")
             if result.has_critical_changes:
                 warn("Critical changes detected! Review new secrets and open ports.")
+
+            # Generate timeline if requested
+            if timeline:
+                try:
+                    from scoutx.reporting.timeline import TimelineGenerator
+                    tl_gen = TimelineGenerator(result.to_dict(), result.to_dict())
+                    tl_md = tl_gen.generate_markdown()
+                    tl_file = scan_dir / "reports" / "timeline.md"
+                    tl_file.parent.mkdir(parents=True, exist_ok=True)
+                    tl_file.write_text(tl_md, encoding="utf-8")
+                    success(f"Timeline written to {tl_file}")
+                except Exception as tl_exc:
+                    warn(f"Timeline generation failed: {tl_exc}")
 
         except Exception as exc:
             error(f"Diff failed: {exc}")

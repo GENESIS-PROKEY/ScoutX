@@ -159,7 +159,7 @@ class ScanEngine:
         start_time = time.perf_counter()
 
         # Resolve execution plan
-        enabled_plugins = self._plugin_manager.get_enabled()
+        enabled_plugins = self._plugin_manager.get_enabled(profile=profile)
         phases = self._resolve_execution_plan(enabled_plugins)
 
         info(f"Execution plan: {len(phases)} phases, {len(enabled_plugins)} plugins")
@@ -170,7 +170,6 @@ class ScanEngine:
         # Execute phases
         all_results: dict[str, PluginResult] = {}
         phases_executed = 0
-        has_failures = False
 
         for phase_idx, phase in enumerate(phases, 1):
             await self._event_bus.emit(Event(
@@ -190,7 +189,7 @@ class ScanEngine:
             # Check for failures
             for name, result in phase_results.items():
                 if result.status == "failed":
-                    has_failures = True
+                    pass
 
             await self._event_bus.emit(Event(
                 type=EventType.PHASE_COMPLETED,
@@ -203,7 +202,7 @@ class ScanEngine:
 
         # Determine overall status — skipped plugins don't count as failures
         completed_count = sum(1 for r in all_results.values() if r.status == "completed")
-        skipped_count = sum(1 for r in all_results.values() if r.status == "skipped")
+        sum(1 for r in all_results.values() if r.status == "skipped")
         failed_count = sum(1 for r in all_results.values() if r.status == "failed")
 
         if failed_count == 0:

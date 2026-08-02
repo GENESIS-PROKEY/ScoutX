@@ -243,7 +243,7 @@ def _dns_cname_lookup(hostname: str) -> list[str]:
     except ImportError:
         # No dnspython — try getaddrinfo + hope for CNAME in response
         try:
-            results = socket.getaddrinfo(hostname, None)
+            socket.getaddrinfo(hostname, None)
             # getaddrinfo doesn't return CNAMEs, but if it resolves we at least know it exists
             return []
         except socket.gaierror:

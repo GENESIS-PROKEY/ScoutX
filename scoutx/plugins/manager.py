@@ -95,9 +95,22 @@ class PluginManager:
         """Get all registered plugins."""
         return list(self._plugins.values())
 
-    def get_enabled(self) -> list[ScoutPlugin]:
-        """Get all enabled plugins."""
-        return [p for p in self._plugins.values() if p.enabled]
+    def get_enabled(self, profile: str = "") -> list[ScoutPlugin]:
+        """Get all enabled plugins, filtered by profile whitelist if applicable."""
+        enabled = [p for p in self._plugins.values() if p.enabled]
+
+        # Check if the profile has a plugin whitelist (passive, quick, etc.)
+        if profile:
+            whitelist = self._config.get(f"safety_profiles.{profile}.plugin_whitelist")
+            if whitelist and isinstance(whitelist, list):
+                filtered = [p for p in enabled if p.meta.name in whitelist]
+                logger.info(
+                    "Profile '%s' whitelist: running %d/%d plugins",
+                    profile, len(filtered), len(enabled),
+                )
+                return filtered
+
+        return enabled
 
     def enable(self, name: str) -> None:
         """Enable a plugin by name."""

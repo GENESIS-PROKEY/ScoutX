@@ -104,6 +104,7 @@ class AttackChainEngine:
             "subdomains", "probe", "ports", "ssl_analysis", "cors",
             "js", "endpoints", "parameters", "secrets", "takeover",
             "screenshots", "nuclei", "intelligence",
+            "cloud", "api_discovery", "github_dork", "historical",
         ]
         for name in plugin_names:
             try:

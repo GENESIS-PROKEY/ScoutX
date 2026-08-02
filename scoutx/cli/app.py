@@ -38,6 +38,7 @@ COMMAND_GROUPS: dict[str, list[tuple[str, str]]] = {
     "Management": [
         ("scope", "Manage target scope (add / remove / list)"),
         ("plugin", "Manage scanner plugins"),
+        ("wordlist", "Manage wordlists (list / download)"),
         ("dashboard", "Start the web dashboard"),
         ("doctor", "Check runtime readiness"),
         ("config", "Show resolved configuration"),
@@ -136,6 +137,13 @@ from scoutx.cli.commands.doctor import doctor_app  # noqa: E402
 app.add_typer(doctor_app, name="doctor")
 app.add_typer(diff_app, name="diff")
 app.add_typer(dashboard_app, name="dashboard")
+
+# Wordlist management
+try:
+    from scoutx.cli.commands.wordlist import wordlist_app  # noqa: E402
+    app.add_typer(wordlist_app, name="wordlist")
+except ImportError:
+    pass  # wordlist module not available
 
 
 # ── Root callback ─────────────────────────────────────────────────────

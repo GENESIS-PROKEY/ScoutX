@@ -138,6 +138,62 @@ def print_scan_summary(data: dict[str, Any]) -> None:
     console.print()
 
 
+def finding_badge(severity: str) -> str:
+    """Return colored Rich markup badge for severity."""
+    badges = {
+        "critical": "[bold white on red] CRITICAL [/]",
+        "high": "[bold white on dark_red] HIGH [/]",
+        "medium": "[bold black on yellow] MEDIUM [/]",
+        "low": "[bold white on blue] LOW [/]",
+        "info": "[bold white on dim] INFO [/]",
+    }
+    return badges.get(severity.lower(), f"[{severity}]")
+
+def phase_banner(phase_num: int, name: str, description: str) -> None:
+    """Print a phase start banner."""
+    console.print(f"\n[{BRAND_PRIMARY}]─── Phase {phase_num}: {name} {'─' * (50 - len(name))}[/]")
+    console.print(f"  [dim]{description}[/dim]\n")
+
+def print_scan_summary_card(target: str, duration: float, risk_score: int, findings: dict, chains: list, stats: dict) -> None:
+    """Print the beautiful end-of-scan summary card."""
+    risk_level = "LOW"
+    if risk_score >= 90:
+        risk_level = "CRITICAL"
+    elif risk_score >= 70:
+        risk_level = "HIGH"
+    elif risk_score >= 40:
+        risk_level = "MEDIUM"
+
+    bars_total = 20
+    filled = int((risk_score / 100) * bars_total)
+    empty = bars_total - filled
+    bar = f"[red]{'█' * filled}[/][dim]{'░' * empty}[/]"
+
+    crit = findings.get("critical", 0)
+    high = findings.get("high", 0)
+    med = findings.get("medium", 0)
+
+    sub = stats.get("subdomains", 0)
+    alv = stats.get("alive", 0)
+    prt = stats.get("ports", 0)
+
+    chain_count = len(chains)
+    top_chain = chains[0] if chains else "None"
+
+    card = f"""
+ Target:     [bold]{target}[/]
+ Duration:   [cyan]{format_duration(duration)}[/]
+ Risk Score: {risk_score}/100 {bar} [bold]{risk_level}[/]
+ 
+ Findings:   [red]Critical: {crit}[/]  [dark_red]High: {high}[/]  [yellow]Medium: {med}[/]
+ Assets:     [cyan]Subdomains: {sub}[/]  [green]Alive: {alv}[/]  [blue]Ports: {prt}[/]
+ Chains:     [magenta]{chain_count} attack chains generated[/]
+ 
+ Top Chain:  [dim]{top_chain}[/]
+"""
+    console.print(Panel(card.strip(), title="Scan Complete", border_style=BRAND_PRIMARY, expand=False))
+
+
 def format_duration(seconds: float) -> str:
     """Convert seconds to a human-readable duration string."""
     if seconds < 1:

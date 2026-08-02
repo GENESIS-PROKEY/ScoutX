@@ -195,7 +195,7 @@ class Plugin(ScoutPlugin):
             info(f"Entropy scan found {len(entropy_findings)} high-entropy strings")
 
         # S3 bucket verification
-        s3_findings = await self._verify_s3_buckets(deduped)
+        await self._verify_s3_buckets(deduped)
 
         # GitHub org secret hunting (if gh CLI available)
         if shutil.which("gh"):
@@ -207,8 +207,8 @@ class Plugin(ScoutPlugin):
 
         # Recalculate totals after enhancements
         total = len(deduped)
-        critical = sum(1 for f in deduped if f["severity"] == "critical")
-        high = sum(1 for f in deduped if f["severity"] == "high")
+        sum(1 for f in deduped if f["severity"] == "critical")
+        sum(1 for f in deduped if f["severity"] == "high")
 
         # Write outputs
         write_jsonl(output_dir / "secrets.jsonl", deduped)
@@ -364,7 +364,7 @@ class Plugin(ScoutPlugin):
     async def _github_org_hunt(self, domain: str) -> list[dict]:
         """Hunt for secrets in GitHub repos related to the target domain."""
         findings: list[dict] = []
-        org_name = domain.split(".")[0]
+        domain.split(".")[0]
         try:
             proc = await asyncio.create_subprocess_exec(
                 "gh", "search", "code", f"{domain} password OR secret OR api_key",

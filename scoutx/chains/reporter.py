@@ -58,7 +58,7 @@ class ChainReporter:
             lines.append("## Attack Chains\n")
 
         for i, chain in enumerate(r.chains, 1):
-            sev_badge = {"critical": "!!!", "high": "!!", "medium": "!", "low": "~"}.get(chain.severity, "")
+            {"critical": "!!!", "high": "!!", "medium": "!", "low": "~"}.get(chain.severity, "")
             lines.append(f"### {i}. [{chain.severity.upper()}] {chain.title}")
             lines.append(f"\n**Confidence:** {chain.confidence:.0%} | **Category:** {chain.category}")
             lines.append(f"\n{chain.description}")
