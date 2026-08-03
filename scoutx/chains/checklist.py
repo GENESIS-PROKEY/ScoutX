@@ -153,7 +153,15 @@ class VulnChecklist:
         """Evaluate all conditions based on scan data."""
         intel = scan_data.get("intelligence", {})
         tech = intel.get("tech_intelligence", {})
-        detected_tech = [t.lower() for t in tech.get("detected_technologies", []) if isinstance(t, str)]
+
+        # Handle tech being either a dict or a list
+        if isinstance(tech, list):
+            # tech is a flat list of technology names
+            detected_tech = [t.lower() for t in tech if isinstance(t, str)]
+        elif isinstance(tech, dict):
+            detected_tech = [t.lower() for t in tech.get("detected_technologies", []) if isinstance(t, str)]
+        else:
+            detected_tech = []
         tech_str = " ".join(detected_tech)
 
         endpoints = scan_data.get("endpoints", {}).get("endpoints", [])

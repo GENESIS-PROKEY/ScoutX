@@ -170,12 +170,13 @@ class Plugin(ScoutPlugin):
         # Write outputs
         atomic_write_text(output_dir / "js_urls.txt", "\n".join(sorted(all_js_urls)) + "\n")
         write_jsonl(output_dir / "js_files.jsonl", downloaded)
-        write_json(output_dir / "js_files.json", {
+        write_json(output_dir / "js.json", {
             "target": context.target,
             "total_urls": len(all_js_urls),
             "downloaded": len(downloaded),
             "by_host": {k: len(v) for k, v in js_by_host.items()},
             "files": downloaded,
+            "js_files": downloaded,
         })
 
         success(f"JS discovery complete: {len(all_js_urls)} URLs, {len(downloaded)} downloaded")
@@ -184,6 +185,7 @@ class Plugin(ScoutPlugin):
             data={
                 "js_urls": sorted(all_js_urls),
                 "downloaded_files": downloaded,
+                "js_files": downloaded,  # Alias for js_deep compatibility
                 "js_by_host": js_by_host,
             },
             findings_count=len(downloaded),

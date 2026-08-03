@@ -277,10 +277,14 @@ class Plugin(ScoutPlugin):
 
         return PluginResult.completed(
             data={
-                "alive_hosts": alive_hosts,
+                "hosts": alive_hosts,
+                "alive_hosts": alive_hosts,  # Legacy alias
                 "alive_urls": alive_urls,
                 "total_probed": len(targets),
                 "alive_count": len(alive_hosts),
+                "alive": len(alive_hosts),
+                "dead": dead_count,
+                "waf_summary": waf_summary,
             },
             findings_count=len(alive_hosts),
             artifacts=[output_dir / "alive.txt", output_dir / "probe.jsonl"],
