@@ -125,9 +125,7 @@ class Plugin(ScoutPlugin):
                         url = f"{scheme}://{hostname}"
                         for attempt in range(2):  # 1 retry
                             try:
-                                info(f"  > Trying {url} (attempt {attempt + 1})...")
                                 resp = await shared_client.get(url)
-                                info(f"  + {url} => {resp.status_code}")
 
                                 # Extract info
                                 title = ""
@@ -174,13 +172,13 @@ class Plugin(ScoutPlugin):
                             except (httpx.TimeoutException, httpx.ConnectError,
                                     httpx.ReadError, httpx.RemoteProtocolError,
                                     ConnectionError, OSError) as net_exc:
-                                info(f"  ! {url}: {type(net_exc).__name__}: {net_exc}")
+                                logger.debug("Probe %s: %s: %s", url, type(net_exc).__name__, net_exc)
                                 if attempt == 0:
                                     await asyncio.sleep(0.5)
                                     continue
                                 break  # Move to next scheme
                             except Exception as exc:
-                                info(f"  ! {url}: UNEXPECTED {type(exc).__name__}: {exc}")
+                                logger.debug("Probe %s failed: %s: %s", url, type(exc).__name__, exc)
                                 break
                     logger.debug("Host dead: %s", hostname)
                     return None
