@@ -125,7 +125,9 @@ class Plugin(ScoutPlugin):
                         url = f"{scheme}://{hostname}"
                         for attempt in range(2):  # 1 retry
                             try:
+                                info(f"  > Trying {url} (attempt {attempt + 1})...")
                                 resp = await shared_client.get(url)
+                                info(f"  + {url} => {resp.status_code}")
 
                                 # Extract info
                                 title = ""
@@ -137,17 +139,20 @@ class Plugin(ScoutPlugin):
                                 headers = {k.lower(): v for k, v in resp.headers.items()}
                                 server = headers.get("server", "")
                                 content_length = len(resp.content)
-
-                                # Tech fingerprinting
-                                technologies = _detect_tech(headers, body_text)
-                                waf = _detect_waf(headers)
-                                cdn = _detect_cdn(headers)
-
-                                # Favicon hash (MMH3 for Shodan pivoting)
-                                favicon_hash = await _get_favicon_hash(shared_client, url)
-
-                                # Final URL after redirects
                                 final_url = str(resp.url)
+
+                                # Fingerprinting — wrapped so crashes don't kill alive hosts
+                                technologies: list[str] = []
+                                waf = ""
+                                cdn = ""
+                                favicon_hash = ""
+                                try:
+                                    technologies = _detect_tech(headers, body_text)
+                                    waf = _detect_waf(headers)
+                                    cdn = _detect_cdn(headers)
+                                    favicon_hash = await _get_favicon_hash(shared_client, url)
+                                except Exception as fp_exc:
+                                    logger.debug("Fingerprint error for %s: %s", url, fp_exc)
 
                                 return {
                                     "hostname": hostname,
@@ -168,13 +173,14 @@ class Plugin(ScoutPlugin):
                                 }
                             except (httpx.TimeoutException, httpx.ConnectError,
                                     httpx.ReadError, httpx.RemoteProtocolError,
-                                    ConnectionError, OSError):
+                                    ConnectionError, OSError) as net_exc:
+                                info(f"  ! {url}: {type(net_exc).__name__}: {net_exc}")
                                 if attempt == 0:
                                     await asyncio.sleep(0.5)
                                     continue
                                 break  # Move to next scheme
                             except Exception as exc:
-                                logger.debug("Probe %s failed: %s: %s", url, type(exc).__name__, exc)
+                                info(f"  ! {url}: UNEXPECTED {type(exc).__name__}: {exc}")
                                 break
                     logger.debug("Host dead: %s", hostname)
                     return None
@@ -363,7 +369,13 @@ def _detect_cdn(headers: dict[str, str]) -> str:
     }
     for header, cdn_name in cdn_hints.items():
         if header in headers:
-            return cdn_name or headers[header].split()[0] if headers[header] else "Unknown CDN"
+            if cdn_name:
+                return cdn_name
+            value = headers[header].strip()
+            if value:
+                parts = value.split()
+                return parts[0] if parts else "Unknown CDN"
+            return "Unknown CDN"
     return ""
 
 
