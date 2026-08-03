@@ -340,13 +340,22 @@ class ScanEngine:
             skip(f"Skipping completed module: {name}")
             return PluginResult(status="skipped", reason="Already completed (resume)")
 
-        # Check dependencies
-        if not plugin.validate_dependencies(context.state.completed_modules):
-            missing = [d for d in plugin.depends_on if d not in context.state.completed_modules]
-            reason = f"Missing dependencies: {', '.join(missing)}"
-            warn(f"{name}: {reason}")
-            context.state.mark_skipped(name, reason)
-            return PluginResult(status="skipped", reason=reason)
+        # Check dependencies — both completed AND skipped count as satisfied
+        # A plugin that was skipped (e.g., no alive hosts) is not a failure;
+        # downstream should still try to run with whatever data is available
+        satisfied = context.state.completed_modules | set(context.state.skipped_modules.keys())
+        if not plugin.validate_dependencies(satisfied):
+            missing = [d for d in plugin.depends_on if d not in satisfied]
+            # Only truly missing deps are ones that haven't run at all
+            # (not completed, not skipped — they either failed or haven't run yet)
+            truly_missing = [d for d in missing if d not in context.state.failed_modules]
+            if truly_missing:
+                reason = f"Missing dependencies: {', '.join(truly_missing)}"
+                warn(f"{name}: {reason}")
+                context.state.mark_skipped(name, reason)
+                return PluginResult(status="skipped", reason=reason)
+            # If deps only "failed", still try to run — we'll get empty data gracefully
+            info(f"{name}: dependencies had failures, running with available data")
 
         print_module_header(name, context.target)
         await context.events.emit(Event(

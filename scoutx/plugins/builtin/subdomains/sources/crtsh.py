@@ -19,31 +19,58 @@ BASE_URL = "https://crt.sh"
 
 
 async def fetch(domain: str, client: httpx.AsyncClient, **kwargs: Any) -> set[str]:
-    """Query crt.sh for subdomains via Certificate Transparency logs."""
+    """Query crt.sh for subdomains via Certificate Transparency logs.
+
+    Falls back to CertSpotter if crt.sh is unavailable.
+    """
     results: set[str] = set()
+
+    # Primary: crt.sh
     try:
         resp = await client.get(
-            BASE_URL,
+            f"{BASE_URL}/",
             params={"q": f"%.{domain}", "output": "json"},
-            timeout=30.0,
+            timeout=45.0,
         )
-        if resp.status_code != 200:
+        if resp.status_code == 200:
+            entries = resp.json()
+            for entry in entries:
+                name_value = entry.get("name_value", "")
+                for name in name_value.split("\n"):
+                    clean = name.strip().lower().lstrip("*.")
+                    if clean and (clean.endswith(f".{domain}") or clean == domain):
+                        if _is_valid_hostname(clean):
+                            results.add(clean)
+            if results:
+                return results
+        else:
             logger.warning("crt.sh returned %d", resp.status_code)
-            return results
-
-        entries = resp.json()
-        for entry in entries:
-            name_value = entry.get("name_value", "")
-            for name in name_value.split("\n"):
-                clean = name.strip().lower().lstrip("*.")
-                if clean and clean.endswith(f".{domain}") or clean == domain:
-                    if _is_valid_hostname(clean):
-                        results.add(clean)
-
     except httpx.TimeoutException:
         logger.warning("crt.sh timed out for %s", domain)
     except Exception as exc:
         logger.warning("crt.sh error for %s: %s", domain, exc)
+
+    # Fallback: CertSpotter (free tier, no key needed)
+    if not results:
+        try:
+            resp = await client.get(
+                f"https://api.certspotter.com/v1/issuances",
+                params={
+                    "domain": domain,
+                    "include_subdomains": "true",
+                    "expand": "dns_names",
+                },
+                timeout=30.0,
+            )
+            if resp.status_code == 200:
+                for entry in resp.json():
+                    for name in entry.get("dns_names", []):
+                        clean = name.strip().lower().lstrip("*.")
+                        if clean and (clean.endswith(f".{domain}") or clean == domain):
+                            if _is_valid_hostname(clean):
+                                results.add(clean)
+        except Exception as exc:
+            logger.debug("CertSpotter fallback failed: %s", exc)
 
     return results
 

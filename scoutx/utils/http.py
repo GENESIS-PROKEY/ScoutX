@@ -110,6 +110,7 @@ class HttpClient:
             "follow_redirects": True,
             "verify": self._verify_ssl,
             "http2": True,
+            "trust_env": False,  # Ignore proxy env vars — recon needs direct connections
         }
         if self._proxy:
             kwargs["proxy"] = self._proxy
