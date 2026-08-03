@@ -624,7 +624,14 @@ def detect_tech_cve_chains(scan_data: dict[str, Any]) -> list[AttackChain]:
     chains: list[AttackChain] = []
     intel_data = scan_data.get("intelligence", {})
     tech_intel = intel_data.get("tech_intelligence", {})
-    detected = tech_intel.get("detected_technologies", [])
+
+    # Handle tech_intel being a flat list or a dict
+    if isinstance(tech_intel, list):
+        detected = tech_intel
+    elif isinstance(tech_intel, dict):
+        detected = tech_intel.get("detected_technologies", [])
+    else:
+        detected = []
 
     CVE_MAP = {
         "log4j": ("Log4Shell RCE", "critical", "CVE-2021-44228",
