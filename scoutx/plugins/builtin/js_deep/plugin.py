@@ -132,7 +132,7 @@ class Plugin(ScoutPlugin):
         source_maps: list[dict] = []
         map_pattern = re.compile(r'//[#@]\s*sourceMappingURL\s*=\s*(\S+)')
 
-        async with httpx.AsyncClient(timeout=10, verify=False) as client:
+        async with httpx.AsyncClient(trust_env=False, timeout=10, verify=False) as client:
             for js in js_files:
                 content = js.get("content", "")
                 url = js.get("url", "")

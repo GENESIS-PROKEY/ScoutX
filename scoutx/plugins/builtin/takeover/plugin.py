@@ -274,6 +274,7 @@ async def _check_http_body(
         url = f"{scheme}://{hostname}"
         try:
             async with httpx.AsyncClient(
+                trust_env=False,
                 verify=False,
                 follow_redirects=True,
                 timeout=httpx.Timeout(timeout, connect=5.0),

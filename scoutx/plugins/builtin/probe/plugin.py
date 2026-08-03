@@ -100,77 +100,99 @@ class Plugin(ScoutPlugin):
         alive_hosts: list[dict[str, Any]] = []
         dead_count = 0
 
-        async def probe_host(hostname: str) -> dict[str, Any] | None:
-            async with semaphore:
-                for scheme in ("https", "http"):
-                    url = f"{scheme}://{hostname}"
-                    try:
-                        async with httpx.AsyncClient(
-                            follow_redirects=True,
-                            verify=False,
-                            timeout=httpx.Timeout(
-                                float(config.get("timeouts.http", 10)),
-                                connect=5.0,
-                            ),
-                        ) as client:
-                            resp = await client.get(url)
+        http_timeout = httpx.Timeout(
+            float(config.get("timeouts.http", 15)),
+            connect=8.0,
+        )
 
-                            # Extract info
-                            title = ""
-                            body_text = resp.text[:5000] if resp.text else ""
-                            title_match = TITLE_RE.search(body_text)
-                            if title_match:
-                                title = title_match.group(1).strip()
+        # Shared client — avoids creating a new TCP pool per host
+        # trust_env=False prevents proxy env vars from breaking connections
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            verify=False,
+            timeout=http_timeout,
+            trust_env=False,
+            limits=httpx.Limits(
+                max_connections=concurrency,
+                max_keepalive_connections=concurrency // 2,
+            ),
+        ) as shared_client:
 
-                            headers = {k.lower(): v for k, v in resp.headers.items()}
-                            server = headers.get("server", "")
-                            content_length = len(resp.content)
+            async def probe_host(hostname: str) -> dict[str, Any] | None:
+                async with semaphore:
+                    # Try HTTP first (cheaper, most hosts respond on 80)
+                    for scheme in ("http", "https"):
+                        url = f"{scheme}://{hostname}"
+                        for attempt in range(2):  # 1 retry
+                            try:
+                                resp = await shared_client.get(url)
 
-                            # Tech fingerprinting
-                            technologies = _detect_tech(headers, body_text)
-                            waf = _detect_waf(headers)
-                            cdn = _detect_cdn(headers)
+                                # Extract info
+                                title = ""
+                                body_text = resp.text[:5000] if resp.text else ""
+                                title_match = TITLE_RE.search(body_text)
+                                if title_match:
+                                    title = title_match.group(1).strip()
 
-                            # Favicon hash (MMH3 for Shodan pivoting)
-                            favicon_hash = await _get_favicon_hash(client, url)
+                                headers = {k.lower(): v for k, v in resp.headers.items()}
+                                server = headers.get("server", "")
+                                content_length = len(resp.content)
 
-                            # Final URL after redirects
-                            final_url = str(resp.url)
+                                # Tech fingerprinting
+                                technologies = _detect_tech(headers, body_text)
+                                waf = _detect_waf(headers)
+                                cdn = _detect_cdn(headers)
 
-                            return {
-                                "hostname": hostname,
-                                "url": url,
-                                "final_url": final_url,
-                                "scheme": scheme,
-                                "status_code": resp.status_code,
-                                "title": title,
-                                "server": server,
-                                "content_length": content_length,
-                                "technologies": technologies,
-                                "waf": waf,
-                                "cdn": cdn,
-                                "favicon_hash": favicon_hash,
-                                "headers": dict(headers),
-                                "alive": True,
-                                "redirect": final_url != url,
-                            }
-                    except (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError):
-                        continue
-                    except Exception:
-                        continue
-                return None
+                                # Favicon hash (MMH3 for Shodan pivoting)
+                                favicon_hash = await _get_favicon_hash(shared_client, url)
 
-        # Run probes concurrently
-        tasks = [probe_host(h) for h in targets]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+                                # Final URL after redirects
+                                final_url = str(resp.url)
+
+                                return {
+                                    "hostname": hostname,
+                                    "url": url,
+                                    "final_url": final_url,
+                                    "scheme": scheme,
+                                    "status_code": resp.status_code,
+                                    "title": title,
+                                    "server": server,
+                                    "content_length": content_length,
+                                    "technologies": technologies,
+                                    "waf": waf,
+                                    "cdn": cdn,
+                                    "favicon_hash": favicon_hash,
+                                    "headers": dict(headers),
+                                    "alive": True,
+                                    "redirect": final_url != url,
+                                }
+                            except (httpx.TimeoutException, httpx.ConnectError,
+                                    httpx.ReadError, httpx.RemoteProtocolError,
+                                    ConnectionError, OSError):
+                                if attempt == 0:
+                                    await asyncio.sleep(0.5)
+                                    continue
+                                break  # Move to next scheme
+                            except Exception as exc:
+                                logger.debug("Probe %s failed: %s: %s", url, type(exc).__name__, exc)
+                                break
+                    logger.debug("Host dead: %s", hostname)
+                    return None
+
+            # Run probes concurrently
+            tasks = [probe_host(h) for h in targets]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for result in results:
             if isinstance(result, Exception):
+                logger.debug("Probe task exception: %s", result)
                 dead_count += 1
             elif result is not None:
                 alive_hosts.append(result)
             else:
                 dead_count += 1
+
+
 
         # Sort by status code
         alive_hosts.sort(key=lambda h: (h.get("status_code", 999), h["hostname"]))

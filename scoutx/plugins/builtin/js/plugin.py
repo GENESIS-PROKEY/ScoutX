@@ -76,7 +76,7 @@ class Plugin(ScoutPlugin):
 
                 try:
                     async with httpx.AsyncClient(
-                        follow_redirects=True, verify=False,
+                        trust_env=False, follow_redirects=True, verify=False,
                         timeout=httpx.Timeout(10.0, connect=5.0),
                     ) as client:
                         resp = await client.get(url)
@@ -128,7 +128,7 @@ class Plugin(ScoutPlugin):
             async with semaphore:
                 try:
                     async with httpx.AsyncClient(
-                        follow_redirects=True, verify=False,
+                        trust_env=False, follow_redirects=True, verify=False,
                         timeout=httpx.Timeout(15.0, connect=5.0),
                     ) as client:
                         resp = await client.get(js_url)

@@ -87,6 +87,7 @@ class Plugin(ScoutPlugin):
         source_errors: dict[str, str] = {}
 
         async with httpx.AsyncClient(
+            trust_env=False,
             follow_redirects=True,
             verify=False,
             timeout=httpx.Timeout(30.0, connect=10.0),

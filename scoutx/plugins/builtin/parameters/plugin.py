@@ -64,7 +64,7 @@ class Plugin(ScoutPlugin):
         for attempt in range(3):
             try:
                 async with httpx.AsyncClient(
-                    follow_redirects=True, verify=False,
+                    trust_env=False, follow_redirects=True, verify=False,
                     timeout=httpx.Timeout(45.0, connect=15.0),
                 ) as client:
                     resp = await client.get(
@@ -102,7 +102,7 @@ class Plugin(ScoutPlugin):
         # Source 2: AlienVault OTX URL list
         try:
             async with httpx.AsyncClient(
-                follow_redirects=True, verify=False,
+                trust_env=False, follow_redirects=True, verify=False,
                 timeout=httpx.Timeout(20.0, connect=10.0),
             ) as client:
                 resp = await client.get(

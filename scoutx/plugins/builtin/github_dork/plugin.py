@@ -105,7 +105,7 @@ class Plugin(ScoutPlugin):
 
         # Rate limit: GitHub allows 30 search requests/min with token
         # Use 2-second delay between requests
-        async with httpx.AsyncClient(timeout=15, headers=headers) as client:
+        async with httpx.AsyncClient(trust_env=False, timeout=15, headers=headers) as client:
             for query in queries:
                 try:
                     resp = await client.get(

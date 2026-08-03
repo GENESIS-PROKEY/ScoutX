@@ -102,7 +102,7 @@ class Plugin(ScoutPlugin):
 
         # Fallback to free API
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(trust_env=False, timeout=15) as client:
                 r = await client.get(f"https://api.api-ninjas.com/v1/whois?domain={domain}")
                 if r.status_code == 200:
                     return r.json()
@@ -167,7 +167,7 @@ class Plugin(ScoutPlugin):
         try:
             # Resolve domain to IP first
             ip = socket.gethostbyname(domain)
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(trust_env=False, timeout=15) as client:
                 r = await client.get(f"https://api.bgpview.io/ip/{ip}")
                 if r.status_code == 200:
                     data = r.json().get("data", {})

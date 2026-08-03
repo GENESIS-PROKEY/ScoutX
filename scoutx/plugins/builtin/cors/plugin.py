@@ -114,6 +114,7 @@ class Plugin(ScoutPlugin):
                 host_findings: list[dict[str, Any]] = []
 
                 async with httpx.AsyncClient(
+                    trust_env=False,
                     verify=False,
                     follow_redirects=True,
                     timeout=httpx.Timeout(10.0, connect=5.0),

@@ -83,7 +83,7 @@ class Plugin(ScoutPlugin):
         graphql_endpoints: list[dict[str, Any]] = []
 
         async with httpx.AsyncClient(
-            timeout=10, verify=False, follow_redirects=True,
+            trust_env=False, timeout=10, verify=False, follow_redirects=True,
             headers={"User-Agent": "Mozilla/5.0 (compatible; ScoutX/2.0)"},
         ) as client:
             tasks = []

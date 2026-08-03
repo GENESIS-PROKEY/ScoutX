@@ -124,7 +124,7 @@ class Plugin(ScoutPlugin):
         }
 
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
+            async with httpx.AsyncClient(trust_env=False, timeout=30) as client:
                 resp = await client.get(cdx_url, params=params)
                 if resp.status_code != 200:
                     logger.warning(f"Wayback CDX returned {resp.status_code}")
@@ -164,7 +164,7 @@ class Plugin(ScoutPlugin):
         result: dict[str, Any] = {}
 
         try:
-            async with httpx.AsyncClient(timeout=15, headers=headers) as client:
+            async with httpx.AsyncClient(trust_env=False, timeout=15, headers=headers) as client:
                 # Historical A records
                 resp = await client.get(
                     f"https://api.securitytrails.com/v1/history/{domain}/dns/a"

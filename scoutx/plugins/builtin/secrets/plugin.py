@@ -343,7 +343,7 @@ class Plugin(ScoutPlugin):
         s3_verified: list[dict] = []
         s3_re = re.compile(r'([a-z0-9][a-z0-9.-]{1,61}[a-z0-9])\.s3[.-]')
 
-        async with httpx.AsyncClient(timeout=5, verify=False) as client:
+        async with httpx.AsyncClient(trust_env=False, timeout=5, verify=False) as client:
             for f in findings:
                 raw = f.get("match_raw", "")
                 for bucket_match in s3_re.finditer(raw):

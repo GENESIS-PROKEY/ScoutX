@@ -215,7 +215,7 @@ class Plugin(ScoutPlugin):
         """Built-in async HTTP directory scanner."""
         findings: list[dict] = []
         async with httpx.AsyncClient(
-            timeout=8, follow_redirects=False, verify=False,
+            trust_env=False, timeout=8, follow_redirects=False, verify=False,
             headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
         ) as client:
             for target in targets[:3]:
@@ -255,7 +255,7 @@ class Plugin(ScoutPlugin):
         ]
         findings: list[dict] = []
         async with httpx.AsyncClient(
-            timeout=5, follow_redirects=False, verify=False,
+            trust_env=False, timeout=5, follow_redirects=False, verify=False,
         ) as client:
             for target in targets[:3]:
                 for path in sensitive:
