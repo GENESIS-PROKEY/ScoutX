@@ -630,7 +630,10 @@ def detect_internal_endpoints(scan_data: dict[str, Any]) -> list[AttackChain]:
     """Internal/admin/API endpoints leaked in JavaScript files."""
     chains: list[AttackChain] = []
     endpoints_data = scan_data.get("endpoints", {})
-    interesting = endpoints_data.get("interesting", endpoints_data.get("endpoints", []))
+    # 'interesting' may be an int count; always fall back to 'endpoints' list
+    interesting = endpoints_data.get("endpoints", [])
+    if not isinstance(interesting, list):
+        interesting = []
 
     admin_endpoints = []
     api_endpoints = []
