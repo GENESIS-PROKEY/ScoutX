@@ -146,17 +146,20 @@ def detect_secret_exploitation(scan_data: dict[str, Any]) -> list[AttackChain]:
         sev = finding.get("severity", "").lower()
         if sev not in ("critical", "high", "medium"):
             continue
-        secret_type = finding.get("type", "unknown")
-        file_path = finding.get("file", "")
-        matched_raw = finding.get("match", "")
-        line_num = finding.get("line", "?")
+        # Handle both field naming conventions
+        secret_type = finding.get("pattern", finding.get("type", "unknown"))
+        file_path = finding.get("source_file", finding.get("file", "unknown"))
+        source_url = finding.get("source_url", "")
+        matched_raw = finding.get("match_raw", finding.get("match", ""))
+        line_num = finding.get("line_number", finding.get("line", "?"))
         # Show enough to identify but not the full secret
         matched_preview = matched_raw[:40] + "..." if len(matched_raw) > 40 else matched_raw
+        display_location = source_url or file_path or "unknown source"
         chain_id = f"chain-secret-{hashlib.md5(matched_raw.encode()).hexdigest()[:8]}"
 
         steps = [
             AttackStep(1, f"Locate the {secret_type} in source code",
-                       f"grep -n '{matched_raw[:20]}' {file_path}",
+                       f"grep -n '{matched_raw[:20]}' {display_location}",
                        "grep",
                        f"Should find the secret at line {line_num}",
                        f"Full match preview: {matched_preview}"),
@@ -261,7 +264,7 @@ def detect_secret_exploitation(scan_data: dict[str, Any]) -> list[AttackChain]:
         else:
             steps.extend([
                 AttackStep(2, "Determine what type of secret this is",
-                           f"# Examine the context around the match in {file_path}:\ngrep -B5 -A5 '{matched_raw[:15]}' {file_path}\n# Look for variable names, comments, API URLs nearby",
+                           f"# Examine the context around the match in {display_location}:\ngrep -B5 -A5 '{matched_raw[:15]}' {display_location}\n# Look for variable names, comments, API URLs nearby",
                            "grep",
                            "Context reveals the service/purpose of the secret",
                            "Common patterns: passwords in config, tokens in auth headers, keys in API calls"),
@@ -279,18 +282,18 @@ def detect_secret_exploitation(scan_data: dict[str, Any]) -> list[AttackChain]:
             confidence=0.7 if sev == "high" else 0.5,
             category="credential_exposure",
             description=(
-                f"A **{secret_type}** was discovered in `{file_path}` (line {line_num}). "
+                f"A **{secret_type}** was discovered in `{display_location}` (line {line_num}). "
                 f"Match preview: `{matched_preview}`. "
                 f"If this credential is live and unrestricted, an attacker can use it to "
                 f"access the associated service — potentially leading to data exfiltration, "
                 f"unauthorized actions, or full account takeover. Follow the validation steps "
                 f"below to determine if this is a real exploitable finding or just informational noise."
             ),
-            target_host=file_path,
-            affected_assets=[file_path],
+            target_host=display_location,
+            affected_assets=[display_location],
             prerequisites=[
                 f"Exposed {secret_type} found in client-side JavaScript",
-                f"File: {file_path} (line {line_num})",
+                f"Source: {display_location} (line {line_num})",
                 f"The secret must be live (not rotated/revoked) to be exploitable",
             ],
             steps=steps,
