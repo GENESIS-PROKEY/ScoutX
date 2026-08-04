@@ -184,11 +184,11 @@ def print_scan_summary_card(target: str, duration: float, risk_score: int, findi
  Target:     [bold]{target}[/]
  Duration:   [cyan]{format_duration(duration)}[/]
  Risk Score: {risk_score}/100 {bar} [bold]{risk_level}[/]
- 
+
  Findings:   [red]Critical: {crit}[/]  [dark_red]High: {high}[/]  [yellow]Medium: {med}[/]
  Assets:     [cyan]Subdomains: {sub}[/]  [green]Alive: {alv}[/]  [blue]Ports: {prt}[/]
  Chains:     [magenta]{chain_count} attack chains generated[/]
- 
+
  Top Chain:  [dim]{top_chain}[/]
 """
     console.print(Panel(card.strip(), title="Scan Complete", border_style=BRAND_PRIMARY, expand=False))

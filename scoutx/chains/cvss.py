@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+
 def _round_up(value: float) -> float:
     """Round up to the nearest 0.1 per CVSS v3.1 specification."""
     # To handle floating point inaccuracies (e.g., 4.0200000000000005 -> 4.02),

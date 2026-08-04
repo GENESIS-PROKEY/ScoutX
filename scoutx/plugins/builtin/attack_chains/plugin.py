@@ -80,6 +80,7 @@ class Plugin(ScoutPlugin):
                 )
                 if client:
                     import asyncio
+
                     from scoutx.chains.narrator import ChainNarrator
                     narrator = ChainNarrator(client)
                     narrative = asyncio.get_event_loop().run_until_complete(

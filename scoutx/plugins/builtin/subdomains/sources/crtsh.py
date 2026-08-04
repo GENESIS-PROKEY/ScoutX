@@ -54,7 +54,7 @@ async def fetch(domain: str, client: httpx.AsyncClient, **kwargs: Any) -> set[st
     if not results:
         try:
             resp = await client.get(
-                f"https://api.certspotter.com/v1/issuances",
+                "https://api.certspotter.com/v1/issuances",
                 params={
                     "domain": domain,
                     "include_subdomains": "true",

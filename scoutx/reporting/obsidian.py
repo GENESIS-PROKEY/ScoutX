@@ -11,15 +11,15 @@ logger = logging.getLogger("scoutx.reporting.obsidian")
 
 class ObsidianReporter:
     """Export scan results as Obsidian-compatible markdown vault."""
-    
+
     def __init__(self, summary: ScanSummary) -> None:
         self.summary = summary
-    
+
     def generate(self, output_dir: Path) -> Path:
         """Generate Obsidian vault structure."""
         vault_dir = output_dir / "obsidian"
         vault_dir.mkdir(parents=True, exist_ok=True)
-        
+
         target = self.summary.target
         s = self.summary
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -85,7 +85,7 @@ class ObsidianReporter:
             f"Back to [[Target - {target}]]",
             "",
         ]
-        
+
         if s.secrets:
             findings_lines.extend(["## Secrets", ""])
             for sec in s.secrets:
@@ -109,7 +109,7 @@ class ObsidianReporter:
                     f"> **Details:** {issue.get('details', '')}",
                     ""
                 ])
-                
+
         findings_note.write_text("\n".join(findings_lines), encoding="utf-8")
 
         # 4. Attack Chains.md

@@ -62,8 +62,8 @@ class ChainReporter:
         for i, chain in enumerate(r.chains, 1):
             sev_emoji = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(chain.severity, "⚪")
             lines.append(f"### {sev_emoji} Chain #{i}: [{chain.severity.upper()}] {chain.title}")
-            lines.append(f"\n| Field | Value |")
-            lines.append(f"|-------|-------|")
+            lines.append("\n| Field | Value |")
+            lines.append("|-------|-------|")
             lines.append(f"| Confidence | **{chain.confidence:.0%}** |")
             lines.append(f"| Category | {chain.category} |")
             if chain.cvss_score:
@@ -71,59 +71,59 @@ class ChainReporter:
             if chain.target_host:
                 lines.append(f"| Target | `{chain.target_host}` |")
 
-            lines.append(f"\n#### What Is This?")
+            lines.append("\n#### What Is This?")
             lines.append(f"\n{chain.description}")
 
             if chain.affected_assets:
-                lines.append(f"\n#### Affected Assets")
+                lines.append("\n#### Affected Assets")
                 for a in chain.affected_assets[:10]:
                     lines.append(f"- `{a}`")
 
             if chain.prerequisites:
-                lines.append(f"\n#### Prerequisites (What must be true)")
+                lines.append("\n#### Prerequisites (What must be true)")
                 for p in chain.prerequisites:
                     lines.append(f"- {p}")
 
             # The meat — step by step exploitation
-            lines.append(f"\n#### 🔬 Step-by-Step Exploitation & Validation\n")
+            lines.append("\n#### 🔬 Step-by-Step Exploitation & Validation\n")
             lines.append("> Follow these steps IN ORDER. Each step builds on the previous one.")
             lines.append("> If any step fails, the chain is likely **not exploitable** — mark as informational.\n")
 
             for step in chain.steps:
                 lines.append(f"**Step {step.order}: {step.action}**\n")
-                lines.append(f"```bash")
+                lines.append("```bash")
                 lines.append(f"{step.command}")
-                lines.append(f"```\n")
+                lines.append("```\n")
                 lines.append(f"✅ **Expected if vulnerable:** {step.expected_result}")
                 if step.notes:
                     lines.append(f"\n💡 **Note:** {step.notes}")
                 lines.append("")
 
             # Is this real?
-            lines.append(f"#### ⚖️ Is This Real or Informational?\n")
+            lines.append("#### ⚖️ Is This Real or Informational?\n")
             _triage = _get_triage_guidance(chain)
-            lines.append(f"| Question | If YES → | If NO → |")
-            lines.append(f"|----------|----------|---------|")
+            lines.append("| Question | If YES → | If NO → |")
+            lines.append("|----------|----------|---------|")
             for q, yes, no in _triage:
                 lines.append(f"| {q} | {yes} | {no} |")
 
             # Before you submit
-            lines.append(f"\n#### 📋 Before You Submit\n")
-            lines.append(f"- [ ] Completed all validation steps above")
-            lines.append(f"- [ ] Captured screenshots/responses as evidence")
-            lines.append(f"- [ ] Confirmed this is **not** a false positive")
-            lines.append(f"- [ ] Impact is clear (what can an attacker DO with this?)")
-            lines.append(f"- [ ] Wrote reproduction steps someone else can follow")
+            lines.append("\n#### 📋 Before You Submit\n")
+            lines.append("- [ ] Completed all validation steps above")
+            lines.append("- [ ] Captured screenshots/responses as evidence")
+            lines.append("- [ ] Confirmed this is **not** a false positive")
+            lines.append("- [ ] Impact is clear (what can an attacker DO with this?)")
+            lines.append("- [ ] Wrote reproduction steps someone else can follow")
 
             if chain.mitigation:
-                lines.append(f"\n#### 🛡️ Remediation\n")
+                lines.append("\n#### 🛡️ Remediation\n")
                 lines.append(f"{chain.mitigation}")
 
             if chain.tools_needed:
                 lines.append(f"\n**Tools needed:** `{', '.join(chain.tools_needed)}`")
 
             if chain.references:
-                lines.append(f"\n#### References")
+                lines.append("\n#### References")
                 for ref in chain.references:
                     lines.append(f"- {ref}")
             lines.append("\n---\n")

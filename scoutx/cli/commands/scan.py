@@ -257,8 +257,9 @@ def register(app: typer.Typer) -> None:
 
             if "pdf" in formats:
                 try:
-                    from scoutx.reporting.pdf import PdfReporter
                     import asyncio
+
+                    from scoutx.reporting.pdf import PdfReporter
                     pdf_reporter = PdfReporter()
                     pdf_path = asyncio.run(pdf_reporter.generate(summary.to_dict() if hasattr(summary, 'to_dict') else {}, report_dir))
                     if pdf_path:

@@ -104,9 +104,9 @@ a:hover { color: var(--accent-cyan); }
   box-shadow: var(--shadow);
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.stat-card:hover { 
-  transform: translateY(-5px); 
-  border-color: rgba(88, 166, 255, 0.5); 
+.stat-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(88, 166, 255, 0.5);
   box-shadow: 0 8px 25px rgba(88, 166, 255, 0.1);
 }
 .stat-value {

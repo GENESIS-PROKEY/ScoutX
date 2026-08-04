@@ -18,15 +18,15 @@ def list_wordlists() -> None:
     table.add_column("Name", style="cyan")
     table.add_column("Type", style="magenta")
     table.add_column("Path", style="green")
-    
+
     builtins = manager.list_builtin()
     for w in builtins:
         table.add_row(w["name"], w["type"], w["path"])
-        
+
     installed = manager.list_installed()
     for w in installed:
         table.add_row(w["name"], w["type"], w["path"])
-        
+
     console.print(table)
 
 @wordlist_app.command("download")
@@ -36,10 +36,10 @@ def download_wordlist(name: str = typer.Argument(..., help="Collection name or g
     if name.startswith("http"):
         url = name
         name = name.split("/")[-1].replace(".git", "")
-        
+
     console.print(f"Downloading {name}...")
     success = asyncio.run(manager.download_collection(name, url))
-    
+
     if success:
         console.print(f"[green]Successfully downloaded {name}[/green]")
     else:
@@ -60,7 +60,7 @@ def wordlist_info(name: str = typer.Argument(..., help="Wordlist name")) -> None
                 lines = path.read_text(encoding="utf-8").splitlines()
                 console.print(f"[bold]Lines:[/bold] {len(lines)}")
             return
-            
+
     installed = manager.list_installed()
     for w in installed:
         if w["name"] == name:
@@ -68,5 +68,5 @@ def wordlist_info(name: str = typer.Argument(..., help="Wordlist name")) -> None
             console.print(f"[bold]Type:[/bold] {w['type']}")
             console.print(f"[bold]Path:[/bold] {w['path']}")
             return
-            
+
     console.print(f"[red]Wordlist '{name}' not found.[/red]")

@@ -1,15 +1,18 @@
 from __future__ import annotations
-from rich.live import Live
-from rich.table import Table
-from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
-from rich.layout import Layout
+
 from rich.columns import Columns
+from rich.layout import Layout
+from rich.live import Live
+from rich.panel import Panel
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.table import Table
+
 from scoutx.cli.ui import console
+
 
 class ScanTUI:
     """Live terminal UI for scan progress."""
-    
+
     def __init__(self, target: str, total_plugins: int):
         self.target = target
         self.total_plugins = total_plugins
@@ -21,7 +24,7 @@ class ScanTUI:
         self._live: Live | None = None
         self._progress: Progress | None = None
         self._task_id = None
-    
+
     def start(self):
         """Start the live TUI display."""
         self._progress = Progress(
@@ -35,7 +38,7 @@ class ScanTUI:
         self._task_id = self._progress.add_task(f"Scanning {self.target}", total=self.total_plugins)
         self._live = Live(self._build_display(), console=console, refresh_per_second=4)
         self._live.start()
-    
+
     def update_plugin(self, name: str, status: str):
         """Update a plugin's status: waiting, running, done, failed, skipped."""
         emoji_map = {"waiting": "⏳", "running": "🔄", "done": "✅", "failed": "❌", "skipped": "⏭️"}
@@ -48,7 +51,7 @@ class ScanTUI:
                 self._progress.update(self._task_id, completed=self.completed)
         if self._live:
             self._live.update(self._build_display())
-    
+
     def add_finding(self, severity: str, title: str, plugin: str):
         """Add a finding to the live feed."""
         colors = {"critical": "red bold", "high": "red", "medium": "yellow", "low": "blue", "info": "dim"}
@@ -58,18 +61,18 @@ class ScanTUI:
             self.findings = self.findings[-8:]
         if self._live:
             self._live.update(self._build_display())
-    
+
     def update_stats(self, **kwargs):
         """Update stats counters."""
         self.stats.update(kwargs)
         if self._live:
             self._live.update(self._build_display())
-    
+
     def finish(self):
         """Stop the live display."""
         if self._live:
             self._live.stop()
-    
+
     def _build_display(self) -> Panel:
         layout = Layout()
         layout.split_column(
@@ -81,11 +84,11 @@ class ScanTUI:
             Layout(name="plugins"),
             Layout(name="findings")
         )
-        
+
         # 1. Progress
         if self._progress:
             layout["progress"].update(Panel(self._progress, border_style="cyan", padding=(0, 2)))
-            
+
         # 2. Stats
         stats_cols = Columns([
             Panel(f"[bold white]{self.stats['subdomains']}[/]", title="Subdomains", border_style="cyan", padding=(0, 2)),
@@ -94,14 +97,14 @@ class ScanTUI:
             Panel(f"[bold white]{self.stats['findings']}[/]", title="Findings", border_style="cyan", padding=(0, 2))
         ], expand=True)
         layout["stats"].update(stats_cols)
-        
+
         # 3. Plugins
         plugin_grid = Table.grid(padding=(0, 2))
         plugin_grid.add_column()
         plugin_grid.add_column()
         plugin_grid.add_column()
         plugin_grid.add_column()
-        
+
         items = list(self.plugin_statuses.items())
         for i in range(0, len(items), 4):
             row = []
@@ -112,9 +115,9 @@ class ScanTUI:
                 else:
                     row.append("")
             plugin_grid.add_row(*row)
-            
+
         layout["plugins"].update(Panel(plugin_grid, title="Plugin Status", border_style="cyan"))
-        
+
         # 4. Findings
         findings_table = Table.grid(padding=(0, 1))
         findings_table.add_column(style="bold")
@@ -122,7 +125,7 @@ class ScanTUI:
         findings_table.add_column(style="dim")
         for f in reversed(self.findings):
             findings_table.add_row(f"[{f['color']}]{f['severity'].upper()}[/]", f["title"], f"[{f['plugin']}]")
-            
+
         layout["findings"].update(Panel(findings_table, title="Recent Findings", border_style="cyan"))
-        
+
         return Panel(layout, title="[bold cyan]ScoutX Live Scan[/]", border_style="cyan")

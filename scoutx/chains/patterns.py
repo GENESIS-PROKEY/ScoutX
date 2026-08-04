@@ -294,7 +294,7 @@ def detect_secret_exploitation(scan_data: dict[str, Any]) -> list[AttackChain]:
             prerequisites=[
                 f"Exposed {secret_type} found in client-side JavaScript",
                 f"Source: {display_location} (line {line_num})",
-                f"The secret must be live (not rotated/revoked) to be exploitable",
+                "The secret must be live (not rotated/revoked) to be exploitable",
             ],
             steps=steps,
             tools_needed=["curl", "grep", "browser", "python3"],
