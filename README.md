@@ -32,6 +32,7 @@
 - [Scan Profiles](#scan-profiles)
 - [Attack Chain Engine](#attack-chain-engine)
 - [10-Phase Methodology](#10-phase-methodology)
+- [AI Integration](#ai-integration)
 - [CLI Reference](#cli-reference)
 - [Output Formats](#output-formats)
 - [Ghost Mode (Stealth)](#ghost-mode-stealth)
@@ -682,6 +683,193 @@ scoutx doctor
 ```
 
 This shows which tools are available for each methodology phase and what's missing.
+
+---
+
+## AI Integration
+
+ScoutX supports **8 LLM providers** for AI-powered attack chain narration. The AI is **optional** — all core scanning, secret detection, and attack chain generation works without it. AI adds a bonus `narrative.md` file with natural-language pentester-style writeups.
+
+### What Does AI Do?
+
+```
+┌─────────────────────┐     ┌──────────────────────┐     ┌───────────────────────┐
+│  ScoutX Scan Engine  │ ──▶ │  Attack Chain Engine  │ ──▶ │   AI Chain Narrator   │
+│  (21 plugins run)    │     │  (pattern matching)   │     │   (LLM generates      │
+│                      │     │  Outputs:             │     │    narrative.md)       │
+│  Subdomains, ports,  │     │  • attack_playbook.md │     │                       │
+│  secrets, endpoints  │     │  • attack_chains.json │     │  "During recon of     │
+│  screenshots, etc.   │     │  • vuln_checklist.md  │     │   target.com, I found │
+│                      │     │  • attack_playbook.html│    │   an exposed API..." │
+└─────────────────────┘     └──────────────────────┘     └───────────────────────┘
+         ALWAYS RUNS                ALWAYS RUNS               ONLY IF AI CONFIGURED
+```
+
+**Without AI:** You get the full attack playbook with bash commands, triage tables, "Is This Real?" decision tables, checklists — everything.
+
+**With AI:** You get an additional `narrative.md` with prose-style writeups like a senior pentester wrote the report.
+
+### Supported Providers
+
+| Provider | API Key Required? | Cost | Default Model | Best For |
+|----------|-------------------|------|---------------|----------|
+| **Ollama** | ❌ No (local) | Free | `llama3.2` | Privacy, offline, no cost |
+| **Groq** | ✅ Yes | Free tier! | `llama-3.3-70b-versatile` | Fast + free |
+| **DeepSeek** | ✅ Yes | Very cheap | `deepseek-chat` | Best value |
+| **OpenAI** | ✅ Yes | Paid | `gpt-4o-mini` | Best quality |
+| **Claude** | ✅ Yes | Paid | `claude-sonnet-4-20250514` | Great reasoning |
+| **Grok** | ✅ Yes | Paid | `grok-3-mini` | xAI users |
+| **OpenRouter** | ✅ Yes | Pay-per-use | `meta-llama/llama-3-8b-instruct` | Access to 100+ models |
+| **Custom** | Depends | Depends | `gpt-4o-mini` | Self-hosted / LM Studio |
+
+### How to Configure AI
+
+Add the `ai:` section to your `scoutx.yaml`:
+
+#### Option 1: Ollama (Free, Local, No API Key)
+
+Best for privacy and zero cost. Runs entirely on your machine.
+
+```bash
+# First install Ollama: https://ollama.com/download
+# Then pull a model:
+ollama pull llama3.2
+```
+
+```yaml
+# scoutx.yaml
+ai:
+  provider: "ollama"
+  model: "llama3.2"        # or mistral, codellama, gemma2, etc.
+  # No api_key needed!
+  # base_url defaults to http://localhost:11434
+```
+
+#### Option 2: Groq (Free Tier, Fast)
+
+Groq gives you free API access with generous rate limits. Best bang for zero bucks.
+
+```yaml
+# scoutx.yaml
+ai:
+  provider: "groq"
+  api_key: "gsk_YOUR_GROQ_API_KEY"   # Get from https://console.groq.com/keys
+  model: "llama-3.3-70b-versatile"    # or mixtral-8x7b-32768
+```
+
+#### Option 3: OpenAI
+
+```yaml
+# scoutx.yaml
+ai:
+  provider: "openai"
+  api_key: "sk-YOUR_OPENAI_KEY"      # Get from https://platform.openai.com/api-keys
+  model: "gpt-4o-mini"               # or gpt-4o, gpt-4-turbo
+```
+
+#### Option 4: Claude (Anthropic)
+
+```yaml
+# scoutx.yaml
+ai:
+  provider: "claude"
+  api_key: "sk-ant-YOUR_KEY"         # Get from https://console.anthropic.com/
+  model: "claude-sonnet-4-20250514"            # or claude-3-haiku-20240307
+```
+
+#### Option 5: DeepSeek (Cheapest Paid)
+
+```yaml
+# scoutx.yaml
+ai:
+  provider: "deepseek"
+  api_key: "sk-YOUR_DEEPSEEK_KEY"    # Get from https://platform.deepseek.com/
+  model: "deepseek-chat"             # or deepseek-coder
+```
+
+#### Option 6: Grok (xAI)
+
+```yaml
+# scoutx.yaml
+ai:
+  provider: "grok"
+  api_key: "xai-YOUR_GROK_KEY"       # Get from https://console.x.ai/
+  model: "grok-3-mini"
+```
+
+#### Option 7: OpenRouter (100+ Models)
+
+Access to OpenAI, Claude, Llama, Mistral, and more through one API.
+
+```yaml
+# scoutx.yaml
+ai:
+  provider: "openrouter"
+  api_key: "sk-or-YOUR_KEY"          # Get from https://openrouter.ai/keys
+  model: "meta-llama/llama-3-8b-instruct"  # or any model on openrouter.ai/models
+```
+
+#### Option 8: Custom / Self-Hosted (LM Studio, vLLM, text-generation-webui)
+
+Any server that speaks the OpenAI chat completions format.
+
+```yaml
+# scoutx.yaml
+ai:
+  provider: "custom"
+  base_url: "http://localhost:1234/v1"   # Your server's URL
+  model: "my-local-model"
+  api_key: "not-needed"                  # Some servers require a dummy key
+```
+
+### Environment Variables (Alternative)
+
+You can also configure AI via environment variables instead of YAML:
+
+```bash
+# Linux / macOS
+export SCOUTX_AI_PROVIDER="groq"
+export SCOUTX_AI_API_KEY="gsk_your_key_here"
+export SCOUTX_AI_MODEL="llama-3.3-70b-versatile"
+```
+
+```powershell
+# Windows PowerShell
+$env:SCOUTX_AI_PROVIDER = "groq"
+$env:SCOUTX_AI_API_KEY = "gsk_your_key_here"
+$env:SCOUTX_AI_MODEL = "llama-3.3-70b-versatile"
+```
+
+### Recommended Setup
+
+| Situation | Use This |
+|-----------|----------|
+| No money, want privacy | **Ollama** (free, local, no data leaves your machine) |
+| No money, want quality | **Groq** (free tier, blazing fast, 70B model) |
+| Budget-conscious | **DeepSeek** (pennies per scan) |
+| Best quality reports | **OpenAI** GPT-4o or **Claude** Sonnet |
+| Want to try everything | **OpenRouter** (one key, 100+ models) |
+| Air-gapped environment | **Custom** with LM Studio or vLLM |
+
+### Verify AI Is Working
+
+```bash
+# Run a scan with AI enabled
+scoutx scan example.com --profile balanced
+
+# Check for narrative output
+ls results/example.com/attack_chains/narrative.md
+```
+
+If AI is configured correctly, you'll see:
+```
++ AI narrative generated (groq (llama-3.3-70b-versatile))
+```
+
+If the key is wrong or missing:
+```
+! groq: Invalid API key.
+```
 
 ---
 
