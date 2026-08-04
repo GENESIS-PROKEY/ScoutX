@@ -176,34 +176,43 @@ class NotificationEngine:
             return engine
 
         # Slack
-        slack = notif_config.get("slack", {})
-        if slack.get("webhook_url"):
+        slack_url = notif_config.get("slack_webhook")
+        if slack_url:
             engine.add_notifier(SlackNotifier(
-                webhook_url=slack["webhook_url"],
-                channel=slack.get("channel"),
-                username=slack.get("username", "ScoutX"),
+                webhook_url=slack_url,
+                channel=notif_config.get("slack_channel"),
+                username=notif_config.get("slack_username", "ScoutX"),
             ))
 
         # Discord
-        discord = notif_config.get("discord", {})
-        if discord.get("webhook_url"):
+        discord_url = notif_config.get("discord_webhook")
+        if discord_url:
             engine.add_notifier(DiscordNotifier(
-                webhook_url=discord["webhook_url"],
+                webhook_url=discord_url,
             ))
 
         # Generic webhook
-        webhook = notif_config.get("webhook", {})
-        if webhook.get("url"):
+        webhook_url = notif_config.get("webhook_url")
+        if webhook_url:
             engine.add_notifier(WebhookNotifier(
-                url=webhook["url"],
-                headers=webhook.get("headers", {}),
-                method=webhook.get("method", "POST"),
+                url=webhook_url,
+                headers=notif_config.get("webhook_headers", {}),
+                method=notif_config.get("webhook_method", "POST"),
             ))
 
         # Events filter
-        events = notif_config.get("events")
+        events = set()
+        if notif_config.get("on_complete"):
+            events.add("scan_complete")
+        if notif_config.get("on_critical"):
+            events.add("critical_finding")
+        
+        # Always allow scan_error if any notifications are configured
+        if events or engine.has_notifiers:
+            events.add("scan_error")
+
         if events:
-            engine.set_enabled_events(set(events))
+            engine.set_enabled_events(events)
 
         logger.info(
             "Notification engine configured: %d backends, %d event types",

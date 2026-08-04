@@ -2,8 +2,10 @@ from pathlib import Path
 
 import typer
 
+import asyncio
 from scoutx.cli.ui import console, error, info, print_module_header, warn
 from scoutx.reporting.diff import ScanDiffer, format_diff_text
+from scoutx.reporting.visual_diff import VisualDiffGenerator
 
 diff_app = typer.Typer(help="Compare two scan result directories.", no_args_is_help=True)
 
@@ -12,6 +14,7 @@ def diff_command(
     dir1: Path = typer.Argument(..., help="First scan directory (older)"),
     dir2: Path = typer.Argument(..., help="Second scan directory (newer)"),
     fmt: str = typer.Option("text", "--format", help="Output format: text, json, html"),
+    visual: bool = typer.Option(False, "--visual", help="Generate a visual screenshot diff alongside the text diff"),
 ) -> None:
     """Compare two scan result directories and show what changed."""
     print_module_header("Scan Diff", f"{dir1.name} -> {dir2.name}")
@@ -41,6 +44,12 @@ def diff_command(
         info(f"Total changes: {result.total_changes} ({result.change_velocity} velocity)")
         if result.has_critical_changes:
             warn("Critical changes detected! Review new secrets and open ports.")
+
+        if visual:
+            info("Generating visual diff...")
+            visual_differ = VisualDiffGenerator()
+            out_path = asyncio.run(visual_differ.generate(dir1, dir2, dir2))
+            info(f"Visual diff generated at: {out_path}")
 
     except Exception as exc:
         error(f"Diff failed: {exc}")

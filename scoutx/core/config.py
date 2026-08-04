@@ -109,10 +109,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "user_agent": "",
     },
     "notifications": {
-        "enabled": False,
-        "slack_webhook": "",
         "discord_webhook": "",
-        "generic_webhooks": [],
+        "slack_webhook": "",
+        "webhook_url": "",
+        "on_critical": True,
+        "on_complete": True,
     },
     "database": {
         "path": "results/scoutx.db",

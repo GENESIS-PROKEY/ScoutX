@@ -158,6 +158,26 @@ class ScanEngine:
         started_at = datetime.now(timezone.utc)
         start_time = time.perf_counter()
 
+        # Fire started notification
+        try:
+            from scoutx.notifications.engine import NotificationEngine, NotificationEvent
+            notif_engine = NotificationEngine.from_config(self._config._data)
+            if notif_engine.has_notifiers:
+                await notif_engine.notify(NotificationEvent(
+                    event_type="scan_started",
+                    target=target,
+                    title=f"ScoutX Scan Started: {target}",
+                    message=f"Starting scan with profile '{profile}'",
+                    severity="info",
+                    fields=[
+                        {"name": "Target", "value": target},
+                        {"name": "Profile", "value": profile},
+                        {"name": "Time", "value": started_at.isoformat()},
+                    ]
+                ))
+        except Exception as notif_exc:
+            logger.debug("Notification dispatch for scan started failed: %s", notif_exc)
+
         # Resolve execution plan
         enabled_plugins = self._plugin_manager.get_enabled(profile=profile)
         phases = self._resolve_execution_plan(enabled_plugins)
@@ -231,14 +251,17 @@ class ScanEngine:
             from scoutx.notifications.engine import NotificationEngine
             notif_engine = NotificationEngine.from_config(self._config._data)
             if notif_engine.has_notifiers:
-                findings = {
-                    "subdomains": len(all_results.get("subdomains", PluginResult.skipped("")).data.get("subdomains", [])) if "subdomains" in all_results else 0,
-                    "alive_hosts": all_results.get("probe", PluginResult.skipped("")).data.get("alive", 0) if "probe" in all_results else 0,
-                    "open_ports": all_results.get("ports", PluginResult.skipped("")).data.get("total_open", 0) if "ports" in all_results else 0,
-                    "secrets": all_results.get("secrets", PluginResult.skipped("")).data.get("total", 0) if "secrets" in all_results else 0,
-                    "endpoints": len(all_results.get("endpoints", PluginResult.skipped("")).data.get("endpoints", [])) if "endpoints" in all_results else 0,
-                }
-                await notif_engine.scan_complete(target, duration, findings)
+                if status in ["completed", "partial"]:
+                    findings = {
+                        "subdomains": len(all_results.get("subdomains", PluginResult.skipped("")).data.get("subdomains", [])) if "subdomains" in all_results else 0,
+                        "alive_hosts": all_results.get("probe", PluginResult.skipped("")).data.get("alive", 0) if "probe" in all_results else 0,
+                        "open_ports": all_results.get("ports", PluginResult.skipped("")).data.get("total_open", 0) if "ports" in all_results else 0,
+                        "secrets": all_results.get("secrets", PluginResult.skipped("")).data.get("total", 0) if "secrets" in all_results else 0,
+                        "endpoints": len(all_results.get("endpoints", PluginResult.skipped("")).data.get("endpoints", [])) if "endpoints" in all_results else 0,
+                    }
+                    await notif_engine.scan_complete(target, duration, findings)
+                else:
+                    await notif_engine.scan_error(target, "Scan failed to complete successfully.")
         except Exception as notif_exc:
             logger.debug("Notification dispatch failed: %s", notif_exc)
 
@@ -324,6 +347,18 @@ class ScanEngine:
                 context.state.mark_failed(name, error_msg, 0.0)
             else:
                 phase_results[name] = result
+                # Check for critical findings and fire notifications
+                try:
+                    from scoutx.notifications.engine import NotificationEngine
+                    notif_engine = NotificationEngine.from_config(context.config._data)
+                    if notif_engine.has_notifiers:
+                        severity = result.data.get("severity") if isinstance(result.data, dict) else None
+                        is_critical = severity in ["critical", "high"] or (name == "secrets" and result.findings_count > 0)
+                        
+                        if is_critical:
+                            await notif_engine.critical_finding(context.target, name, f"Found {result.findings_count} critical/high findings during '{name}' phase.")
+                except Exception as notif_exc:
+                    logger.debug("Notification dispatch for critical finding failed: %s", notif_exc)
 
         return phase_results
 
@@ -429,4 +464,14 @@ class ScanEngine:
             logger.exception("Plugin %s crashed: %s", name, error_msg)
             context.state.mark_failed(name, error_msg, duration)
             error(f"{name} failed: {error_msg}")
+            
+            # Fire scan error notification for plugin crash
+            try:
+                from scoutx.notifications.engine import NotificationEngine
+                notif_engine = NotificationEngine.from_config(context.config._data)
+                if notif_engine.has_notifiers:
+                    await notif_engine.scan_error(context.target, f"Plugin '{name}' crashed: {error_msg}")
+            except Exception as notif_exc:
+                logger.debug("Notification dispatch for plugin crash failed: %s", notif_exc)
+                
             return PluginResult(status="failed", reason=error_msg, duration_seconds=duration)

@@ -28,7 +28,7 @@ def register(app: typer.Typer) -> None:
         quick: bool = typer.Option(False, "--quick", help="Quick scan: subdomains + probe + ports only (~60s)"),
         passive: bool = typer.Option(False, "--passive", help="Passive mode: OSINT only, zero active requests"),
         no_tui: bool = typer.Option(False, "--no-tui", help="Disable live terminal UI"),
-        report_format: str = typer.Option("html,md", "--format", "-f", help="Report formats: html, md, csv, sarif, obsidian"),
+        report_format: str = typer.Option("html,md", "--format", "-f", help="Report formats: html, md, csv, sarif, obsidian, burp"),
     ) -> None:
         """Run the full async recon pipeline.
 
@@ -118,6 +118,16 @@ def register(app: typer.Typer) -> None:
                         except Exception as obs_exc:
                             warn(f"Obsidian export failed: {obs_exc}")
 
+                    if "burp" in formats:
+                        try:
+                            import asyncio
+                            from scoutx.reporting.burp import BurpReporter
+                            burp_reporter = BurpReporter()
+                            asyncio.run(burp_reporter.generate(summary.to_dict() if hasattr(summary, 'to_dict') else {}, report_dir))
+                            success("Burp XML exported")
+                        except Exception as burp_exc:
+                            warn(f"Burp export failed: {burp_exc}")
+
                     success(f"Reports generated in {report_dir}")
                 except Exception as report_exc:
                     warn(f"Report generation failed: {report_exc}")
@@ -196,7 +206,7 @@ def register(app: typer.Typer) -> None:
     def report(
         domain: str = typer.Argument(..., help="Target domain"),
         output: Path = typer.Option(Path("results"), "-o", "--output"),
-        fmt: str = typer.Option("html,md", "--format", "-f", help="Report formats: html, md, csv, sarif, obsidian, pdf"),
+        fmt: str = typer.Option("html,md", "--format", "-f", help="Report formats: html, md, csv, sarif, obsidian, pdf, burp"),
     ) -> None:
         """Generate reports from existing scan data."""
         from scoutx.reporting.aggregator import ScanAggregator
@@ -269,6 +279,17 @@ def register(app: typer.Typer) -> None:
                         warn("PDF export skipped (install weasyprint or playwright)")
                 except Exception as pdf_exc:
                     warn(f"PDF export failed: {pdf_exc}")
+
+            if "burp" in formats:
+                try:
+                    import asyncio
+                    from scoutx.reporting.burp import BurpReporter
+                    burp_reporter = BurpReporter()
+                    path = asyncio.run(burp_reporter.generate(summary.to_dict() if hasattr(summary, 'to_dict') else {}, report_dir))
+                    generated.append(f"Burp: {path}")
+                    success(f"Burp report: {path}")
+                except Exception as burp_exc:
+                    warn(f"Burp export failed: {burp_exc}")
 
             info(f"Generated {len(generated)} report(s) in {report_dir}")
 
