@@ -25,6 +25,7 @@
 - [What is ScoutX?](#what-is-scoutx)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
+- [API Key Configuration](#api-key-configuration)
 - [Auto Tool Installation](#auto-tool-installation)
 - [All 21 Plugins](#all-21-plugins)
 - [All 52 External Tools](#all-52-external-tools)
@@ -75,14 +76,21 @@ ScoutX is a modular, async-first reconnaissance framework built for security res
 > **Note:** On some Linux distros (Kali, Debian), `sx` may conflict with lrzsz. Use `scoutx` instead, or remove lrzsz: `sudo apt remove lrzsz`
 
 ```bash
-# Install
+# Clone and set up virtual environment
+git clone https://github.com/GENESIS-PROKEY/ScoutX.git
+cd ScoutX
+python -m venv venv && source venv/bin/activate  # Windows: .\venv\Scripts\Activate.ps1
+
+# Install ScoutX + required extras
 pip install -e .
+pip install playwright && playwright install chromium
+
+# Install Nuclei (vuln scanner) — needs Go installed
+go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+nuclei -update-templates
 
 # Check what tools you have
 scoutx doctor
-
-# Auto-install all missing tools
-scoutx doctor --install all
 
 # Run your first scan
 scoutx scan example.com
@@ -91,7 +99,7 @@ scoutx scan example.com
 scoutx scan example.com --profile aggressive
 ```
 
-That's it. ScoutX runs all 21 plugins, discovers subdomains, probes hosts, scans ports, extracts JS endpoints, hunts secrets, detects cloud assets, discovers APIs, and generates attack chains — automatically.
+That's it. ScoutX runs all 21 plugins, discovers subdomains, probes hosts, scans ports, extracts JS endpoints, hunts secrets, detects cloud assets, discovers APIs, takes screenshots, runs Nuclei scans, and generates attack chain playbooks — automatically.
 
 ### Quick Modes
 
@@ -114,40 +122,179 @@ scoutx report example.com --format html,md,obsidian
 
 ## Installation
 
-### From Source (Recommended)
+### Prerequisites
 
+- **Python 3.10+** — [Download here](https://www.python.org/downloads/)
+- **Git** — [Download here](https://git-scm.com/downloads)
+- **Go 1.21+** (optional, for Go-based tools) — [Download here](https://go.dev/dl/)
+
+### Step 1: Clone & Create Virtual Environment
+
+> ⚠️ **IMPORTANT:** Always use a virtual environment. Installing directly with `pip install` without a venv can cause dependency conflicts and permission errors.
+
+**Linux / macOS:**
 ```bash
 git clone https://github.com/GENESIS-PROKEY/ScoutX.git
 cd ScoutX
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install ScoutX
 pip install -e .
-```
 
-### With All Extras
-
-```bash
+# Or with all extras (PDF reporting, web dashboard)
 pip install -e ".[full]"
 ```
 
-This installs optional dependencies for PDF reporting, the web dashboard, and advanced features.
+**Windows (PowerShell):**
+```powershell
+git clone https://github.com/GENESIS-PROKEY/ScoutX.git
+cd ScoutX
 
-### Linux One-Liner
+# Create virtual environment
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+
+# Install ScoutX
+pip install -e .
+
+# Or with all extras (PDF reporting, web dashboard)
+pip install -e ".[full]"
+```
+
+> 💡 **Tip:** Every time you open a new terminal, activate the venv first:
+> - Linux/macOS: `source venv/bin/activate`
+> - Windows: `.\venv\Scripts\Activate.ps1`
+
+### Step 2: Install Playwright Browsers (Required for Screenshots)
+
+ScoutX uses Playwright for taking screenshots of discovered hosts. Without this step, the screenshots plugin will be skipped.
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/GENESIS-PROKEY/ScoutX/main/scripts/install.sh | bash
+# Install Playwright and download browser binaries (~300 MB)
+pip install playwright
+playwright install chromium
 ```
 
-### Windows PowerShell
+This downloads Chromium, FFmpeg, and headless shell binaries to your local app data directory.
 
+### Step 3: Install Nuclei (Required for Vulnerability Scanning)
+
+Nuclei is used for automated vulnerability detection with 9000+ templates. Without it, the nuclei plugin will be skipped.
+
+**Linux / macOS:**
+```bash
+# Option 1: Using Go (recommended)
+go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+
+# Option 2: Download binary
+curl -sSL https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_$(uname -s)_$(uname -m).zip -o nuclei.zip
+unzip nuclei.zip && sudo mv nuclei /usr/local/bin/
+```
+
+**Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/GENESIS-PROKEY/ScoutX/main/scripts/install.ps1 | iex
+# Option 1: Using Go (recommended)
+go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+
+# Option 2: Download binary from GitHub Releases
+# Go to https://github.com/projectdiscovery/nuclei/releases/latest
+# Download nuclei_windows_amd64.zip
+# Extract and add to PATH
 ```
 
-### Docker
+After installing, download the latest vulnerability templates:
+```bash
+nuclei -update-templates
+```
+
+### Step 4: Verify Installation
+
+```bash
+# Check ScoutX and all tool status
+scoutx doctor
+
+# Auto-install any remaining missing tools
+scoutx doctor --install all
+```
+
+### Docker (Alternative)
+
+If you prefer Docker, everything is pre-configured:
 
 ```bash
 docker build -t scoutx .
 docker run --rm -v $(pwd)/results:/app/results scoutx scan example.com
 ```
+
+---
+
+## API Key Configuration
+
+ScoutX works without any API keys — but adding them **dramatically improves** subdomain discovery, historical DNS lookups, and GitHub dorking. Some features are completely disabled without their respective keys.
+
+### How to Set API Keys
+
+Create a `scoutx.yaml` file in your project root (or `~/.scoutx/config.yaml` for global config):
+
+```yaml
+# scoutx.yaml — API Key Configuration
+api_keys:
+  # Subdomain Discovery Sources
+  shodan: "YOUR_SHODAN_API_KEY"           # https://account.shodan.io/
+  securitytrails: "YOUR_ST_API_KEY"       # https://securitytrails.com/app/account
+  virustotal: "YOUR_VT_API_KEY"           # https://www.virustotal.com/gui/my-apikey
+  censys_id: "YOUR_CENSYS_API_ID"         # https://search.censys.io/account/api
+  censys_secret: "YOUR_CENSYS_SECRET"     # Same page as censys_id
+  dnsdb: "YOUR_DNSDB_API_KEY"             # https://www.dnsdb.info/
+
+  # GitHub Dorking (REQUIRED for github_dork plugin)
+  github: "ghp_YOUR_GITHUB_TOKEN"         # https://github.com/settings/tokens
+
+  # Other
+  chaos: "YOUR_CHAOS_KEY"                 # https://chaos.projectdiscovery.io/
+  alienvault: "YOUR_OTX_KEY"              # https://otx.alienvault.com/api
+```
+
+### Alternative: Environment Variables
+
+You can also set API keys via environment variables:
+
+```bash
+# Linux / macOS
+export SX_SHODAN_KEY="your-key-here"
+export SX_SECURITYTRAILS_KEY="your-key-here"
+export SX_VIRUSTOTAL_KEY="your-key-here"
+export SX_GITHUB_TOKEN="ghp_your-token-here"
+export SX_CENSYS_ID="your-id"
+export SX_CENSYS_SECRET="your-secret"
+export SX_DNSDB_KEY="your-key-here"
+```
+
+```powershell
+# Windows PowerShell
+$env:SX_SHODAN_KEY = "your-key-here"
+$env:SX_SECURITYTRAILS_KEY = "your-key-here"
+$env:SX_VIRUSTOTAL_KEY = "your-key-here"
+$env:SX_GITHUB_TOKEN = "ghp_your-token-here"
+```
+
+### Which Keys Do What?
+
+| Key | Free Tier? | What It Unlocks |
+|-----|-----------|-----------------|
+| **Shodan** | ✅ Yes | Subdomain discovery + port/service data from Shodan's index |
+| **SecurityTrails** | ✅ Yes (50 queries/mo) | Historical DNS records, subdomain enumeration |
+| **VirusTotal** | ✅ Yes (500 req/day) | Subdomain discovery from VT's passive DNS |
+| **Censys** | ✅ Yes (250 queries/mo) | Certificate-based subdomain discovery |
+| **DNSDB** | ❌ Paid | Passive DNS database (Farsight Security) |
+| **GitHub** | ✅ Yes (free PAT) | Search GitHub repos for leaked credentials, config files |
+| **Chaos** | ✅ Yes | ProjectDiscovery's chaos subdomain dataset |
+| **AlienVault OTX** | ✅ Yes | Passive DNS + URL intelligence |
+
+> 💡 **Recommended minimum:** Shodan + SecurityTrails + VirusTotal + GitHub. All have free tiers.
 
 ---
 
@@ -452,26 +599,61 @@ After reconnaissance, ScoutX automatically analyzes findings and generates **att
 
 4. **Playbook Output** — Generated as Markdown, HTML, or JSON in `results/<target>/attack_chains/`
 
-### Example Output
+### Example Playbook Output
+
+Each chain in the playbook includes:
+
+- ✅ **Full exploitation commands** in bash code blocks (not truncated)
+- ⚖️ **"Is This Real or Informational?"** triage decision table
+- 📋 **"Before You Submit"** checklist to prevent false positive reports
+- 🛡️ **5-step remediation** guide
+- 🔗 **References** to OWASP and KeyHacks
 
 ```
-## Attack Chain: Subdomain Takeover → Phishing Campaign
+### 🟠 Chain #8: [HIGH] Exposed Google API Key → Potential Account Takeover
 
-Severity: CRITICAL | Confidence: HIGH
+| Field | Value |
+|-------|-------|
+| Confidence | **70%** |
+| Category | credential_exposure |
+| Target | `https://www.example.com/_next/static/chunks/pages/_app.js` |
 
-### Step 1: Verify Dangling CNAME
-Target: staging.example.com
-Tool: dig staging.example.com CNAME
-Evidence: CNAME points to us-east-1.elasticbeanstalk.com (not resolving)
+#### 🔬 Step-by-Step Exploitation & Validation
 
-### Step 2: Claim the Service
-Target: AWS Elastic Beanstalk
-Tool: aws elasticbeanstalk create-environment
-Expected: 200 OK with your content
+**Step 1: Locate the Google API Key in source code**
 
-### Step 3: Deploy Phishing Page
-Impact: Full control of staging.example.com
-Risk: Cookie theft, credential harvesting for *.example.com
+    grep -n 'AIzaSyCF5xmyzDGWYpa2' https://www.example.com/_app.js
+
+✅ Expected if vulnerable: Should find the secret at line 1
+
+**Step 2: Test Google API key validity**
+
+    curl -s 'https://maps.googleapis.com/maps/api/geocode/json?address=test&key=AIzaSyCF...' | python3 -m json.tool
+
+✅ Expected if vulnerable: status: 'OK' = key is live
+
+**Step 3: Enumerate enabled Google APIs**
+
+    curl -s 'https://www.googleapis.com/customsearch/v1?key=AIzaSyCF...&q=test'
+    curl -s 'https://translation.googleapis.com/language/translate/v2?key=AIzaSyCF...&q=hello&target=es'
+
+✅ Expected if vulnerable: Any 200 response = billable to key owner
+
+#### ⚖️ Is This Real or Informational?
+
+| Question | If YES → | If NO → |
+|----------|----------|---------|
+| Does the secret look real? | Likely real — validate | Probably placeholder |
+| Can you auth to a service? | CONFIRMED — report HIGH | Revoked/expired — lower |
+| Write/admin permissions? | CRITICAL — full compromise | Read-only — lower impact |
+
+#### 📋 Before You Submit
+
+- [ ] Completed all validation steps above
+- [ ] Captured screenshots/responses as evidence
+- [ ] Confirmed this is NOT a false positive
+- [ ] Impact is clear
+- [ ] Wrote reproduction steps someone else can follow
 ```
 
 ---
