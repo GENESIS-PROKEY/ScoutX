@@ -354,7 +354,7 @@ class ScanEngine:
                     if notif_engine.has_notifiers:
                         severity = result.data.get("severity") if isinstance(result.data, dict) else None
                         is_critical = severity in ["critical", "high"] or (name == "secrets" and result.findings_count > 0)
-                        
+
                         if is_critical:
                             await notif_engine.critical_finding(context.target, name, f"Found {result.findings_count} critical/high findings during '{name}' phase.")
                 except Exception as notif_exc:
@@ -464,7 +464,7 @@ class ScanEngine:
             logger.exception("Plugin %s crashed: %s", name, error_msg)
             context.state.mark_failed(name, error_msg, duration)
             error(f"{name} failed: {error_msg}")
-            
+
             # Fire scan error notification for plugin crash
             try:
                 from scoutx.notifications.engine import NotificationEngine
@@ -473,5 +473,5 @@ class ScanEngine:
                     await notif_engine.scan_error(context.target, f"Plugin '{name}' crashed: {error_msg}")
             except Exception as notif_exc:
                 logger.debug("Notification dispatch for plugin crash failed: %s", notif_exc)
-                
+
             return PluginResult(status="failed", reason=error_msg, duration_seconds=duration)

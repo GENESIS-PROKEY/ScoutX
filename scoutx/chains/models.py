@@ -42,6 +42,7 @@ class AttackChain:
     affected_assets: list[str] = field(default_factory=list)  # URLs, subdomains, etc.
     cvss_score: float = 0.0           # CVSS v3.1 base score (auto-calculated)
     cvss_vector: str = ""             # CVSS v3.1 vector string
+    exploitability: float = 0.0       # 0.0 - 1.0 how likely this is a REAL exploitable finding
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for JSON export."""
@@ -72,6 +73,7 @@ class AttackChain:
             "evidence": self.evidence,
             "cvss_score": self.cvss_score,
             "cvss_vector": self.cvss_vector,
+            "exploitability": self.exploitability,
         }
 
 

@@ -206,7 +206,7 @@ class NotificationEngine:
             events.add("scan_complete")
         if notif_config.get("on_critical"):
             events.add("critical_finding")
-        
+
         # Always allow scan_error if any notifications are configured
         if events or engine.has_notifiers:
             events.add("scan_error")

@@ -1,8 +1,8 @@
+import asyncio
 from pathlib import Path
 
 import typer
 
-import asyncio
 from scoutx.cli.ui import console, error, info, print_module_header, warn
 from scoutx.reporting.diff import ScanDiffer, format_diff_text
 from scoutx.reporting.visual_diff import VisualDiffGenerator
